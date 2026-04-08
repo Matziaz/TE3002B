@@ -1,11 +1,50 @@
 square_controller:
   ros__parameters:
-    use_sim_time: false
+    # =========================
+    # Modo de operación
+    # =========================
+    # "speed" -> usuario da velocidades, nodo calcula tiempos
+    # "time"  -> usuario da tiempo total, nodo calcula velocidades
+    mode: "speed"
+
+    # =========================
+    # Geometría de la trayectoria
+    # =========================
     side_length: 2.0
+
+    # =========================
+    # Parámetros para mode="speed"
+    # =========================
     linear_speed: 0.15
     angular_speed: 0.35
+
+    # =========================
+    # Parámetros para mode="time"
+    # =========================
+    total_time: 80.0
+    turn_time_ratio: 0.30
+
+    # =========================
+    # Límites / robustez
+    # =========================
+    max_linear_speed: 0.25
+    max_angular_speed: 0.80
+    min_linear_speed: 0.05
+    min_angular_speed: 0.10
+
+    # =========================
+    # Pausas para medición
+    # =========================
     initial_stop_time: 2.0
     point_stop_time: 2.0
     final_stop_time: 2.0
-    cmd_vel_topic: /cmd_vel
+
+    # =========================
+    # ROS
+    # =========================
+    use_sim_time: false
+    cmd_vel_topic: "/cmd_vel"
     control_rate: 20.0
+
+    # +1 = giro positivo, -1 = giro negativo
+    turn_direction: 1.0
