@@ -10,16 +10,42 @@ class SquarePathClass(Node):
     def __init__(self):
         super().__init__('square_path')
 
-        # ===== Parámetros =====
-        # Para simulación puedes subir velocidad.
-        # Para robot real conviene empezar más conservador.
-        self.side_length = 2.0       # m
-        self.linear_speed = 0.15     # m/s
-        self.angular_speed = 0.35    # rad/s
+        # ===== Declarar parámetros =====
+        self.declare_parameter('side_length', 2.0)
+        self.declare_parameter('linear_speed', 0.15)
+        self.declare_parameter('angular_speed', 0.35)
+        self.declare_parameter('initial_stop_time', 2.0)
+        self.declare_parameter('point_stop_time', 2.0)
+        self.declare_parameter('final_stop_time', 2.0)
+        self.declare_parameter('cmd_vel_topic', '/cmd_vel')
+        self.declare_parameter('control_rate', 20.0)
 
-        self.initial_stop_time = 2.0 # s
-        self.point_stop_time = 2.0   # s en cada punto
-        self.final_stop_time = 2.0   # s
+        # ===== Leer parámetros =====
+        self.side_length = self.get_parameter('side_length').value
+        self.linear_speed = self.get_parameter('linear_speed').value
+        self.angular_speed = self.get_parameter('angular_speed').value
+        self.initial_stop_time = self.get_parameter('initial_stop_time').value
+        self.point_stop_time = self.get_parameter('point_stop_time').value
+        self.final_stop_time = self.get_parameter('final_stop_time').value
+        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
+        self.control_rate = self.get_parameter('control_rate').value
+
+        # ===== Validación básica =====
+        if self.linear_speed <= 0.0:
+            self.get_logger().warn("linear_speed <= 0. Using default 0.15")
+            self.linear_speed = 0.15
+
+        if self.angular_speed <= 0.0:
+            self.get_logger().warn("angular_speed <= 0. Using default 0.35")
+            self.angular_speed = 0.35
+
+        if self.side_length <= 0.0:
+            self.get_logger().warn("side_length <= 0. Using default 2.0")
+            self.side_length = 2.0
+
+        if self.control_rate <= 0.0:
+            self.get_logger().warn("control_rate <= 0. Using default 20.0")
+            self.control_rate = 20.0
 
         # ===== Tiempos calculados =====
         self.forward_time = self.side_length / self.linear_speed
@@ -27,14 +53,14 @@ class SquarePathClass(Node):
 
         # ===== Variables de estado =====
         self.state = "initial_stop"
-        self.segment_count = 0       # 0,1,2,3 -> cuatro lados
-        self.current_point_index = 1 # empieza en p1
+        self.segment_count = 0
+        self.current_point_index = 1
         self.start_time = self.get_clock().now()
 
         # ===== ROS =====
-        self.cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
 
-        timer_period = 0.05
+        timer_period = 1.0 / self.control_rate
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         self.vel = Twist()
@@ -46,8 +72,16 @@ class SquarePathClass(Node):
             f"angular_speed={self.angular_speed} rad/s"
         )
         self.get_logger().info(
+            f"initial_stop_time={self.initial_stop_time} s, "
+            f"point_stop_time={self.point_stop_time} s, "
+            f"final_stop_time={self.final_stop_time} s"
+        )
+        self.get_logger().info(
             f"forward_time={self.forward_time:.2f} s, "
             f"turn_time={self.turn_time:.2f} s"
+        )
+        self.get_logger().info(
+            f"cmd_vel_topic={self.cmd_vel_topic}, control_rate={self.control_rate} Hz"
         )
         self.get_logger().info("Robot must start at p1 facing toward p2.")
 
@@ -78,7 +112,6 @@ class SquarePathClass(Node):
 
     def timer_callback(self):
 
-        # 1) Pausa inicial en p1
         if self.state == "initial_stop":
             self.publish_stop()
 
@@ -87,7 +120,6 @@ class SquarePathClass(Node):
                 self.reset_time_reference()
                 self.get_logger().info("Starting motion: p1 -> p2")
 
-        # 2) Avanzar recto un lado
         elif self.state == "move_forward":
             self.publish_forward()
 
@@ -99,12 +131,10 @@ class SquarePathClass(Node):
                 reached_point = self.next_point_name()
                 self.get_logger().info(f"Reached {reached_point}. Hold position for measurement.")
 
-        # 3) Detenerse en cada punto para medir error
         elif self.state == "point_stop":
             self.publish_stop()
 
             if self.elapsed_time() >= self.point_stop_time:
-                # Si ya completó 4 lados, terminó el cuadrado
                 if self.segment_count >= 3:
                     self.state = "final_stop"
                     self.reset_time_reference()
@@ -114,7 +144,6 @@ class SquarePathClass(Node):
                     self.reset_time_reference()
                     self.get_logger().info("Turning 90 degrees to next segment.")
 
-        # 4) Girar 90 grados
         elif self.state == "turn":
             self.publish_turn()
 
@@ -129,7 +158,6 @@ class SquarePathClass(Node):
                 self.reset_time_reference()
                 self.get_logger().info(f"Starting segment toward {next_target}")
 
-        # 5) Pausa final
         elif self.state == "final_stop":
             self.publish_stop()
 
@@ -137,7 +165,6 @@ class SquarePathClass(Node):
                 self.state = "done"
                 self.get_logger().info("Done.")
 
-        # 6) Terminado
         elif self.state == "done":
             self.publish_stop()
 
