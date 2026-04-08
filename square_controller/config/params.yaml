@@ -1,63 +1,11 @@
-# MCR2 Mini Challenge 1 – Parameter file
-# ==========================================
-# Copy to your workspace and pass with:
-#   ros2 run square_controller square_controller_node \
-#       --ros-args --params-file config/params.yaml
-
 square_controller:
   ros__parameters:
-    # ── Square geometry ──────────────────────────────────────────────────────
-    side_length: 2.0          # metres
-
-    # ── Velocity settings ────────────────────────────────────────────────────
-    # Option A: Fixed speeds (both > 0)
-    linear_speed:  0.2        # m/s  → t_straight = 2.0/0.2 = 10 s per side
-    angular_speed: 0.5        # rad/s → t_turn = (π/2)/0.5 ≈ 3.14 s per turn
-
-    # Option B: Auto-tune from total time (set linear_speed/angular_speed <= 0)
-    # linear_speed:  -1.0     # <= 0 triggers auto-tune
-    # angular_speed: -1.0
-    # total_time:   40.0      # seconds for the full square
-
-    # ── Robustness settings ──────────────────────────────────────────────────
-    ramp_fraction: 0.2        # 20% of each segment for accel + 20% for decel
-
-    # ── System ──────────────────────────────────────────────────────────────
+    use_sim_time: false
+    side_length: 2.0
+    linear_speed: 0.15
+    angular_speed: 0.35
+    initial_stop_time: 2.0
+    point_stop_time: 2.0
+    final_stop_time: 2.0
     cmd_vel_topic: /cmd_vel
-    control_rate:  50.0       # Hz
-
-path_generator_node:
-  ros__parameters:
-    publish_rate: 10.0        # Hz
-    loop_path:    false
-
-    # Waypoints for the path generator (custom square)
-    # Each waypoint: x, y, yaw (rad), linear_vel (m/s), angular_vel (rad/s), time_to_wp (s)
-    waypoints:
-      - x: 2.0
-        y: 0.0
-        yaw: 0.0
-        linear_vel:  0.2
-        angular_vel: 0.5
-        time_to_wp: -1.0
-
-      - x: 2.0
-        y: 2.0
-        yaw: 1.5707963
-        linear_vel:  0.2
-        angular_vel: 0.5
-        time_to_wp: -1.0
-
-      - x: 0.0
-        y: 2.0
-        yaw: 3.1415926
-        linear_vel:  0.2
-        angular_vel: 0.5
-        time_to_wp: -1.0
-
-      - x: 0.0
-        y: 0.0
-        yaw: 4.7123889
-        linear_vel:  0.2
-        angular_vel: 0.5
-        time_to_wp: -1.0
+    control_rate: 20.0
