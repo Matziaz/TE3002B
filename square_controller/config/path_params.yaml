@@ -31,12 +31,12 @@ path_generator_node:
     start_y: 0.0
     start_theta: 0.0
 
-    # Ruta ejemplo
-    # En modo "time", cada punto debe traer time_to_wp
+    # Ruta de prueba
+    # Estos tiempos ya consideran un margen para que el precheck la acepte
     waypoints_json: >
       [
-        {"x": 1.00, "y": 0.50, "time_to_wp": 8.0},
-        {"x": 2.00, "y": 1.50, "time_to_wp": 10.0},
-        {"x": 1.20, "y": 2.20, "time_to_wp": 9.0},
-        {"x": 0.30, "y": 1.00, "time_to_wp": 8.5}
+        {"x": 0.60, "y": 0.60, "time_to_wp": 5.5},
+        {"x": 1.50, "y": 0.60, "time_to_wp": 5.5},
+        {"x": 0.00, "y": 2.00, "time_to_wp": 13.0},
+        {"x": 2.00, "y": 2.00, "time_to_wp": 13.0}
       ]
