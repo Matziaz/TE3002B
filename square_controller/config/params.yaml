@@ -25,12 +25,32 @@ square_controller:
     turn_time_ratio: 0.30
 
     # =========================
-    # Límites / robustez
+    # Límites mínimos
     # =========================
-    max_linear_speed: 0.25
-    max_angular_speed: 0.80
     min_linear_speed: 0.05
     min_angular_speed: 0.10
+
+    # =========================
+    # Parámetros físicos del robot
+    # =========================
+    wheel_radius: 0.0505
+    wheel_base: 0.175
+    motor_rpm_nominal: 176.0
+    nominal_voltage: 6.0
+    operating_voltage: 4.8
+
+    # =========================
+    # Límites teóricos / manuales
+    # =========================
+    use_theoretical_limits: true
+
+    # Factores de seguridad aplicados a los máximos teóricos
+    linear_speed_safety_factor: 0.50
+    angular_speed_safety_factor: 0.50
+
+    # Si use_theoretical_limits = false, se usan estos:
+    max_linear_speed_manual: 0.25
+    max_angular_speed_manual: 0.80
 
     # =========================
     # Pausas para medición
@@ -48,18 +68,3 @@ square_controller:
 
     # +1 = giro positivo, -1 = giro negativo
     turn_direction: 1.0
-
-    #=================
-
-    wheel_radius: 0.0505
-    wheel_base: 0.175
-    motor_rpm_nominal: 176.0
-    nominal_voltage: 6.0
-    operating_voltage: 4.8
-    
-    use_theoretical_limits: true
-    linear_speed_safety_factor: 0.50
-    angular_speed_safety_factor: 0.50
-    
-    max_linear_speed_manual: 0.25
-    max_angular_speed_manual: 0.80
