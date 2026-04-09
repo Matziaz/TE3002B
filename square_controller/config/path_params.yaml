@@ -31,12 +31,12 @@ path_generator_node:
     start_y: 0.0
     start_theta: 0.0
 
-    # Ruta ejemplo
+    # Ruta ejemplo: cuadrado de lado 0.30 m
     # En modo "time", cada punto debe traer time_to_wp
     waypoints_json: >
       [
-        {"x": 1.00, "y": 0.50, "time_to_wp": 8.0},
-        {"x": 2.00, "y": 1.50, "time_to_wp": 10.0},
-        {"x": 1.20, "y": 2.20, "time_to_wp": 9.0},
-        {"x": 0.30, "y": 1.00, "time_to_wp": 8.5}
+        {"x": 0.30, "y": 0.00, "time_to_wp": 4.0},
+        {"x": 0.30, "y": 0.30, "time_to_wp": 4.0},
+        {"x": 0.00, "y": 0.30, "time_to_wp": 4.0},
+        {"x": 0.00, "y": 0.00, "time_to_wp": 4.0}
       ]
