@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import math
 import json
+import math
 
 import rclpy
-from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from rclpy.node import Node
 
 
 class PathGenerator(Node):
@@ -47,17 +47,6 @@ class PathGenerator(Node):
         self.declare_parameter('start_theta', 0.0)
 
         # Lista de waypoints en JSON
-        # Ejemplo:
-        # [
-        #   {"x": 1.0, "y": 0.5, "time_to_wp": 8.0},
-        #   {"x": 0.0, "y": 1.2, "time_to_wp": 10.0}
-        # ]
-        #
-        # o en modo speed:
-        # [
-        #   {"x": 1.0, "y": 0.5},
-        #   {"x": 0.0, "y": 1.2}
-        # ]
         self.declare_parameter('waypoints_json', '[]')
 
         # =========================================================
@@ -126,7 +115,7 @@ class PathGenerator(Node):
         # Cargar y procesar trayectoria
         # =========================================================
         raw_waypoints = self.load_waypoints()
-        self.segments = self.build_segments(raw_waypoints)
+        self.segments, self.route_ready = self.build_segments(raw_waypoints)
 
         # =========================================================
         # Estado FSM
@@ -179,7 +168,9 @@ class PathGenerator(Node):
                 f"t_fwd={seg['forward_time']:.3f} s"
             )
 
-        if not self.segments:
+        if not self.route_ready:
+            self.get_logger().error("Route precheck FAILED. Node will remain stopped.")
+        elif not self.segments:
             self.get_logger().warn("No valid reachable segments. Node will remain stopped.")
 
     # =============================================================
@@ -257,14 +248,22 @@ class PathGenerator(Node):
         return validated
 
     # =============================================================
-    # Construcción de segmentos
+    # Construcción de segmentos + precheck completo
     # =============================================================
     def build_segments(self, waypoints):
         segments = []
+        route_valid = True
 
         curr_x = self.start_x
         curr_y = self.start_y
         curr_theta = self.start_theta
+
+        total_min_motion_time = 0.0
+        total_budget_motion_time = 0.0
+
+        if not waypoints:
+            self.get_logger().error("[PRECHECK] No hay waypoints válidos.")
+            return [], False
 
         for i, wp in enumerate(waypoints, start=1):
             target_x = wp['x']
@@ -275,108 +274,100 @@ class PathGenerator(Node):
             dy = target_y - curr_y
 
             distance = math.hypot(dx, dy)
-            target_theta = math.atan2(dy, dx)
-            delta_theta = self.normalize_angle(target_theta - curr_theta)
-
-            abs_turn = abs(delta_theta)
 
             if distance < 1e-6:
-                self.get_logger().warn(
-                    f"Waypoint {i} coincide con la posición actual. Se omite."
+                self.get_logger().error(
+                    f"[PRECHECK] Waypoint {i} coincide con la posición actual."
                 )
+                route_valid = False
+                curr_x = target_x
+                curr_y = target_y
                 continue
 
-            reachable = True
+            target_theta = math.atan2(dy, dx)
+            delta_theta = self.normalize_angle(target_theta - curr_theta)
+            abs_turn = abs(delta_theta)
+
+            # Tiempo mínimo físicamente necesario para este tramo
+            min_turn_time = abs_turn / self.max_angular_speed if abs_turn > 1e-6 else 0.0
+            min_forward_time = distance / self.max_linear_speed
+            min_total_time = min_turn_time + min_forward_time
+
+            total_min_motion_time += min_total_time
 
             if self.mode == 'speed':
                 linear_speed = self.linear_speed_default
-                angular_speed = self.angular_speed_default
+                angular_speed = self.angular_speed_default if abs_turn > 1e-6 else 0.0
 
-                forward_time = distance / linear_speed
                 turn_time = abs_turn / angular_speed if abs_turn > 1e-6 else 0.0
+                forward_time = distance / linear_speed
+
+                total_budget_motion_time += (turn_time + forward_time)
 
             else:
                 # mode == 'time'
                 if time_to_wp is None:
-                    self.get_logger().warn(
-                        f"Waypoint {i} no trae time_to_wp en mode='time'. Se omite."
+                    self.get_logger().error(
+                        f"[PRECHECK] Waypoint {i} no trae time_to_wp en mode='time'."
                     )
+                    route_valid = False
+                    curr_x = target_x
+                    curr_y = target_y
+                    curr_theta = target_theta
                     continue
 
                 if time_to_wp <= 0.0:
-                    self.get_logger().warn(
-                        f"Waypoint {i} con time_to_wp <= 0. Se omite."
+                    self.get_logger().error(
+                        f"[PRECHECK] Waypoint {i} tiene time_to_wp <= 0."
                     )
+                    route_valid = False
+                    curr_x = target_x
+                    curr_y = target_y
+                    curr_theta = target_theta
                     continue
 
-                # Tomamos el tiempo dado como tiempo total del punto:
-                # giro + avance = time_to_wp
-                if abs_turn < 1e-6:
-                    turn_fraction = 0.0
-                else:
-                    # Reparto simple proporcional a magnitudes
-                    turn_fraction = abs_turn / (abs_turn + distance)
+                total_budget_motion_time += time_to_wp
 
-                turn_time = max(time_to_wp * turn_fraction, 0.0)
-                forward_time = max(time_to_wp - turn_time, 0.0)
-
-                # Casos degenerados
-                if abs_turn > 1e-6 and turn_time <= 1e-6:
-                    self.get_logger().warn(
-                        f"Waypoint {i}: tiempo insuficiente para girar. No alcanzable."
+                if time_to_wp + 1e-9 < min_total_time:
+                    self.get_logger().error(
+                        f"[PRECHECK] Waypoint {i} NO alcanzable: "
+                        f"requiere al menos {min_total_time:.3f} s "
+                        f"(giro={min_turn_time:.3f} s, avance={min_forward_time:.3f} s), "
+                        f"pero time_to_wp={time_to_wp:.3f} s."
                     )
-                    reachable = False
-                    linear_speed = 0.0
-                    angular_speed = 0.0
-                elif forward_time <= 1e-6:
-                    self.get_logger().warn(
-                        f"Waypoint {i}: tiempo insuficiente para avanzar. No alcanzable."
-                    )
-                    reachable = False
-                    linear_speed = 0.0
-                    angular_speed = 0.0
-                else:
-                    linear_speed = distance / forward_time
-                    angular_speed = abs_turn / turn_time if abs_turn > 1e-6 else self.min_angular_speed
-
-                    if linear_speed > self.max_linear_speed:
-                        self.get_logger().warn(
-                            f"Waypoint {i}: v requerida={linear_speed:.3f} > vmax={self.max_linear_speed:.3f}. "
-                            "No alcanzable."
-                        )
-                        reachable = False
-
-                    if abs_turn > 1e-6 and angular_speed > self.max_angular_speed:
-                        self.get_logger().warn(
-                            f"Waypoint {i}: w requerida={angular_speed:.3f} > wmax={self.max_angular_speed:.3f}. "
-                            "No alcanzable."
-                        )
-                        reachable = False
-
-                    if reachable:
-                        linear_speed = max(linear_speed, self.min_linear_speed)
-                        if abs_turn > 1e-6:
-                            angular_speed = max(angular_speed, self.min_angular_speed)
-
-            if self.mode == 'speed':
-                # En speed mode, igual verificamos alcanzabilidad contra límites
-                if linear_speed > self.max_linear_speed or linear_speed < self.min_linear_speed:
-                    reachable = False
-                if abs_turn > 1e-6:
-                    if angular_speed > self.max_angular_speed or angular_speed < self.min_angular_speed:
-                        reachable = False
-
-                if not reachable:
-                    self.get_logger().warn(
-                        f"Waypoint {i}: no alcanzable con v={linear_speed:.3f}, w={angular_speed:.3f}. Se omite."
-                    )
+                    route_valid = False
+                    curr_x = target_x
+                    curr_y = target_y
+                    curr_theta = target_theta
                     continue
 
-            if not reachable:
-                self.get_logger().warn(
-                    f"Waypoint {i} ({target_x:.3f}, {target_y:.3f}) NO ALCANZABLE. Se omite."
+                # Reparto del tiempo disponible entre giro y avance
+                extra_time = time_to_wp - min_total_time
+                turn_share = (min_turn_time / min_total_time) if min_total_time > 1e-6 else 0.0
+
+                turn_time = min_turn_time + extra_time * turn_share
+                forward_time = min_forward_time + extra_time * (1.0 - turn_share)
+
+                turn_time = max(turn_time, 1e-6)
+                forward_time = max(forward_time, 1e-6)
+
+                linear_speed = distance / forward_time
+                angular_speed = abs_turn / turn_time if abs_turn > 1e-6 else 0.0
+
+            # Validación de límites
+            if not (self.min_linear_speed <= linear_speed <= self.max_linear_speed):
+                self.get_logger().error(
+                    f"[PRECHECK] Waypoint {i}: v requerida={linear_speed:.3f} "
+                    f"fuera de límites [{self.min_linear_speed:.3f}, {self.max_linear_speed:.3f}]."
                 )
-                continue
+                route_valid = False
+
+            if abs_turn > 1e-6 and not (self.min_angular_speed <= angular_speed <= self.max_angular_speed):
+                self.get_logger().error(
+                    f"[PRECHECK] Waypoint {i}: w requerida={angular_speed:.3f} "
+                    f"fuera de límites [{self.min_angular_speed:.3f}, {self.max_angular_speed:.3f}]."
+                )
+                route_valid = False
 
             segments.append({
                 'target_x': target_x,
@@ -390,18 +381,60 @@ class PathGenerator(Node):
                 'forward_time': forward_time
             })
 
-            # Actualizamos pose planeada para el siguiente punto
+            # La planeación sigue la ruta completa intencional
             curr_x = target_x
             curr_y = target_y
             curr_theta = target_theta
 
-        return segments
+        total_waypoints = len(waypoints)
+
+        total_min_full_time = (
+            self.initial_stop_time
+            + total_min_motion_time
+            + total_waypoints * self.point_stop_time
+            + self.final_stop_time
+        )
+
+        total_budget_full_time = (
+            self.initial_stop_time
+            + total_budget_motion_time
+            + total_waypoints * self.point_stop_time
+            + self.final_stop_time
+        )
+
+        self.get_logger().info(
+            f"[PRECHECK] Tiempo mínimo de movimiento: {total_min_motion_time:.3f} s"
+        )
+        self.get_logger().info(
+            f"[PRECHECK] Presupuesto de movimiento: {total_budget_motion_time:.3f} s"
+        )
+        self.get_logger().info(
+            f"[PRECHECK] Tiempo mínimo total (con pausas): {total_min_full_time:.3f} s"
+        )
+        self.get_logger().info(
+            f"[PRECHECK] Presupuesto total (con pausas): {total_budget_full_time:.3f} s"
+        )
+
+        if self.mode == 'time' and total_min_motion_time > total_budget_motion_time + 1e-9:
+            self.get_logger().error(
+                "[PRECHECK] La ruta completa excede el presupuesto total definido por time_to_wp."
+            )
+            route_valid = False
+
+        if not route_valid:
+            self.get_logger().error(
+                "[PRECHECK] Ruta inválida. No se ejecutará ninguna parte de la secuencia."
+            )
+            return [], False
+
+        self.get_logger().info("[PRECHECK] Ruta válida. Se ejecutará la secuencia completa.")
+        return segments, True
 
     # =============================================================
     # FSM
     # =============================================================
     def timer_callback(self):
-        if not self.segments:
+        if not self.route_ready or not self.segments:
             self.publish_stop()
             return
 
