@@ -61,6 +61,9 @@ square_controller:
     point_stop_time: 2.0
     final_stop_time: 2.0
 
+    # Suavizado de arranque/freno
+    ramp_time: 0.25
+
     # =========================
     # ROS
     # =========================

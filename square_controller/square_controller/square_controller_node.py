@@ -35,6 +35,9 @@ class SquareController(Node):
         self.declare_parameter('point_stop_time', 2.0)
         self.declare_parameter('final_stop_time', 2.0)
 
+        # Perfil suave de velocidad
+        self.declare_parameter('ramp_time', 0.25)
+
         # ROS
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
         self.declare_parameter('control_rate', 20.0)
@@ -62,6 +65,7 @@ class SquareController(Node):
         self.initial_stop_time = float(self.get_parameter('initial_stop_time').value)
         self.point_stop_time = float(self.get_parameter('point_stop_time').value)
         self.final_stop_time = float(self.get_parameter('final_stop_time').value)
+        self.ramp_time = float(self.get_parameter('ramp_time').value)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.control_rate = float(self.get_parameter('control_rate').value)
@@ -83,6 +87,10 @@ class SquareController(Node):
             self.get_logger().warn("control_rate <= 0. Using default 20.0")
             self.control_rate = 20.0
 
+        if self.ramp_time < 0.0:
+            self.get_logger().warn("ramp_time < 0. Using 0.0")
+            self.ramp_time = 0.0
+
         if self.turn_direction >= 0.0:
             self.turn_direction = 1.0
         else:
@@ -100,6 +108,7 @@ class SquareController(Node):
         self.segment_count = 0
         self.current_point_index = 1  # arranca en p1, primer objetivo es p2
         self.start_time = self.get_clock().now()
+        self.current_phase_duration = 0.0
 
         # =========================
         # ROS interfaces
@@ -125,6 +134,7 @@ class SquareController(Node):
             f"Pauses: initial={self.initial_stop_time:.2f}s, "
             f"point={self.point_stop_time:.2f}s, final={self.final_stop_time:.2f}s"
         )
+        self.get_logger().info(f"ramp_time = {self.ramp_time:.2f} s")
         self.get_logger().info(
             f"Limits: vmax={self.max_linear_speed:.3f} m/s, "
             f"wmax={self.max_angular_speed:.3f} rad/s"
@@ -133,6 +143,21 @@ class SquareController(Node):
             f"cmd_vel_topic={self.cmd_vel_topic}, control_rate={self.control_rate:.1f} Hz"
         )
         self.get_logger().info("Robot must start at p1 facing toward p2.")
+
+    def ramp_factor(self):
+        if self.ramp_time <= 1e-6:
+            return 1.0
+
+        phase_time = self.elapsed_time()
+
+        if phase_time < self.ramp_time:
+            return max(0.0, min(1.0, phase_time / self.ramp_time))
+
+        if phase_time > self.current_phase_duration - self.ramp_time:
+            remaining = max(0.0, self.current_phase_duration - phase_time)
+            return max(0.0, min(1.0, remaining / self.ramp_time))
+
+        return 1.0
 
     # ==================================================
     # Auto-tuning / robustez
@@ -192,6 +217,10 @@ class SquareController(Node):
 
             self.forward_time = self.side_length / self.linear_speed
             self.turn_time = (math.pi / 2.0) / self.angular_speed
+
+            if self.ramp_time > 0.0:
+                self.forward_time += self.ramp_time
+                self.turn_time += self.ramp_time
 
             estimated_total = 4.0 * self.forward_time + 4.0 * self.turn_time + total_pause_time
             self.get_logger().info(
@@ -266,6 +295,10 @@ class SquareController(Node):
             self.forward_time = self.side_length / self.linear_speed
             self.turn_time = (math.pi / 2.0) / self.angular_speed
 
+            if self.ramp_time > 0.0:
+                self.forward_time += self.ramp_time
+                self.turn_time += self.ramp_time
+
             actual_total = 4.0 * self.forward_time + 4.0 * self.turn_time + total_pause_time
 
             if reachable:
@@ -300,13 +333,13 @@ class SquareController(Node):
         self.cmd_vel_pub.publish(self.vel)
 
     def publish_forward(self):
-        self.vel.linear.x = self.linear_speed
+        self.vel.linear.x = self.linear_speed * self.ramp_factor()
         self.vel.angular.z = 0.0
         self.cmd_vel_pub.publish(self.vel)
 
     def publish_turn(self):
         self.vel.linear.x = 0.0
-        self.vel.angular.z = self.turn_direction * self.angular_speed
+        self.vel.angular.z = self.turn_direction * self.angular_speed * self.ramp_factor()
         self.cmd_vel_pub.publish(self.vel)
 
     def next_point_name(self):
@@ -324,9 +357,11 @@ class SquareController(Node):
             if self.elapsed_time() >= self.initial_stop_time:
                 self.state = "move_forward"
                 self.reset_time_reference()
+                self.current_phase_duration = self.forward_time
                 self.get_logger().info("Starting motion: p1 -> p2")
 
         elif self.state == "move_forward":
+            self.current_phase_duration = self.forward_time
             self.publish_forward()
 
             if self.elapsed_time() >= self.forward_time:
@@ -346,13 +381,16 @@ class SquareController(Node):
                 if self.segment_count >= 3:
                     self.state = "final_stop"
                     self.reset_time_reference()
+                    self.current_phase_duration = self.final_stop_time
                     self.get_logger().info("Square completed. Final stop.")
                 else:
                     self.state = "turn"
                     self.reset_time_reference()
+                    self.current_phase_duration = self.turn_time
                     self.get_logger().info("Turning 90 degrees to next segment.")
 
         elif self.state == "turn":
+            self.current_phase_duration = self.turn_time
             self.publish_turn()
 
             if self.elapsed_time() >= self.turn_time:
@@ -364,6 +402,7 @@ class SquareController(Node):
                 next_target = self.next_point_name()
                 self.state = "move_forward"
                 self.reset_time_reference()
+                self.current_phase_duration = self.forward_time
                 self.get_logger().info(f"Starting segment toward {next_target}")
 
         elif self.state == "final_stop":
