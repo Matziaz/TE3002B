@@ -35,8 +35,8 @@ path_generator_node:
     # En modo "time", cada punto debe traer time_to_wp
     waypoints_json: >
       [
-        {"x": 0.30, "y": 0.00, "time_to_wp": 4.0},
-        {"x": 0.30, "y": 0.30, "time_to_wp": 4.0},
-        {"x": 0.00, "y": 0.30, "time_to_wp": 4.0},
-        {"x": 0.00, "y": 0.00, "time_to_wp": 4.0}
+        {"x": 0.30, "y": 0.00, "time_to_wp": 5.0},
+        {"x": 0.30, "y": 0.30, "time_to_wp": 5.0},
+        {"x": 0.00, "y": 0.30, "time_to_wp": 5.0},
+        {"x": 0.00, "y": 0.00, "time_to_wp": 5.0}
       ]

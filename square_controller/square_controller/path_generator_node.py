@@ -309,44 +309,49 @@ class PathGenerator(Node):
                     )
                     continue
 
-                # Tomamos el tiempo dado como tiempo total del punto:
-                # giro + avance = time_to_wp
-                if abs_turn < 1e-6:
-                    turn_fraction = 0.0
-                else:
-                    # Reparto simple proporcional a magnitudes
-                    turn_fraction = abs_turn / (abs_turn + distance)
+                # Usamos el tiempo dado como presupuesto total del punto:
+                # giro + avance = time_to_wp.
+                # Primero calculamos el mínimo tiempo físicamente necesario
+                # con las velocidades máximas permitidas.
+                min_turn_time = abs_turn / self.max_angular_speed if abs_turn > 1e-6 else 0.0
+                min_forward_time = distance / self.max_linear_speed
+                min_total_time = min_turn_time + min_forward_time
 
-                turn_time = max(time_to_wp * turn_fraction, 0.0)
-                forward_time = max(time_to_wp - turn_time, 0.0)
-
-                # Casos degenerados
-                if abs_turn > 1e-6 and turn_time <= 1e-6:
+                if time_to_wp < min_total_time:
                     self.get_logger().warn(
-                        f"Waypoint {i}: tiempo insuficiente para girar. No alcanzable."
+                        f"Waypoint {i}: time_to_wp={time_to_wp:.3f} s es menor que el mínimo "
+                        f"{min_total_time:.3f} s. No alcanzable."
                     )
                     reachable = False
                     linear_speed = 0.0
                     angular_speed = 0.0
-                elif forward_time <= 1e-6:
-                    self.get_logger().warn(
-                        f"Waypoint {i}: tiempo insuficiente para avanzar. No alcanzable."
-                    )
-                    reachable = False
-                    linear_speed = 0.0
-                    angular_speed = 0.0
+                    turn_time = 0.0
+                    forward_time = 0.0
                 else:
+                    extra_time = time_to_wp - min_total_time
+
+                    if min_total_time > 1e-6:
+                        turn_share = min_turn_time / min_total_time
+                    else:
+                        turn_share = 0.0
+
+                    turn_time = min_turn_time + extra_time * turn_share
+                    forward_time = min_forward_time + extra_time * (1.0 - turn_share)
+
+                    turn_time = max(turn_time, 1e-6)
+                    forward_time = max(forward_time, 1e-6)
+
                     linear_speed = distance / forward_time
                     angular_speed = abs_turn / turn_time if abs_turn > 1e-6 else self.min_angular_speed
 
-                    if linear_speed > self.max_linear_speed:
+                    if linear_speed > self.max_linear_speed + 1e-9:
                         self.get_logger().warn(
                             f"Waypoint {i}: v requerida={linear_speed:.3f} > vmax={self.max_linear_speed:.3f}. "
                             "No alcanzable."
                         )
                         reachable = False
 
-                    if abs_turn > 1e-6 and angular_speed > self.max_angular_speed:
+                    if abs_turn > 1e-6 and angular_speed > self.max_angular_speed + 1e-9:
                         self.get_logger().warn(
                             f"Waypoint {i}: w requerida={angular_speed:.3f} > wmax={self.max_angular_speed:.3f}. "
                             "No alcanzable."
