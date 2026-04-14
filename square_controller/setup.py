@@ -25,6 +25,7 @@ setup(
         "console_scripts": [
             "square_controller_node = square_controller.square_controller_node:main",
             "path_generator_node    = square_controller.path_generator_node:main",
+            "go_to_goal_node       = square_controller.go_to_goal_node:main",
         ],
     },
 )
