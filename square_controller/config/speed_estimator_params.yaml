@@ -1,0 +1,20 @@
+speed_estimator_node:
+  ros__parameters:
+    use_sim_time: true
+
+    right_wheel_topic: "/VelocityEncR"
+    left_wheel_topic: "/VelocityEncL"
+
+    linear_speed_topic: "/puzzlebot/linear_speed"
+    angular_speed_topic: "/puzzlebot/angular_speed"
+    estimated_twist_topic: "/puzzlebot/estimated_twist"
+
+    publish_rate: 20.0
+
+    # Ajusta estos valores a tu robot si son diferentes
+    wheel_radius: 0.05
+    wheel_base: 0.19
+    encoders_are_angular_speed: true
+
+    timeout_seconds: 0.5
+    log_rate_hz: 2.0

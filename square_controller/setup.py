@@ -16,16 +16,14 @@ setup(
     ],
     install_requires=["setuptools"],
     zip_safe=True,
-    maintainer="MCR2 Student",
-    maintainer_email="student@mcr2.com",
-    description="MCR2 Mini Challenge 1 – Square path open-loop controller",
+    maintainer="Mati",
+    maintainer_email="A01772503@tec.mx",
+    description="MCR Activity 1 - Puzzlebot speed estimator from wheel encoders",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "square_controller_node = square_controller.square_controller_node:main",
-            "path_generator_node    = square_controller.path_generator_node:main",
-            "go_to_goal_node       = square_controller.go_to_goal_node:main",
+            "speed_estimator_node = square_controller.speed_estimator_node:main",
         ],
     },
 )
