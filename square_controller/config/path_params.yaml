@@ -2,6 +2,7 @@ path_generator_node:
   ros__parameters:
     mode: "time"               # "time" o "speed"
     cmd_vel_topic: "/cmd_vel"
+    goals_topic: "/goals"
     control_rate: 20.0
 
     # Límites del robot

@@ -4,8 +4,10 @@ import json
 import math
 
 import rclpy
+from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from square_controller_msgs.msg import Goals
 
 
 class PathGenerator(Node):
@@ -17,6 +19,7 @@ class PathGenerator(Node):
         # =========================================================
         self.declare_parameter('mode', 'speed')  # 'speed' o 'time'
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
+        self.declare_parameter('goals_topic', '/goals')
         self.declare_parameter('control_rate', 20.0)
 
         # Límites / robustez
@@ -54,6 +57,7 @@ class PathGenerator(Node):
         # =========================================================
         self.mode = str(self.get_parameter('mode').value).strip().lower()
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
+        self.goals_topic = str(self.get_parameter('goals_topic').value)
         self.control_rate = float(self.get_parameter('control_rate').value)
 
         self.max_linear_speed = float(self.get_parameter('max_linear_speed').value)
@@ -136,6 +140,7 @@ class PathGenerator(Node):
         # ROS interfaces
         # =========================================================
         self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
+        self.goals_pub = self.create_publisher(Goals, self.goals_topic, 10)
         self.vel = Twist()
 
         timer_period = 1.0 / self.control_rate
@@ -147,6 +152,7 @@ class PathGenerator(Node):
         self.get_logger().info("Path Generator Node initialized.")
         self.get_logger().info(f"Mode: {self.mode}")
         self.get_logger().info(f"cmd_vel_topic: {self.cmd_vel_topic}")
+        self.get_logger().info(f"goals_topic: {self.goals_topic}")
         self.get_logger().info(
             f"Limits: vmax={self.max_linear_speed:.3f} m/s, "
             f"wmax={self.max_angular_speed:.3f} rad/s"
@@ -202,6 +208,49 @@ class PathGenerator(Node):
         self.vel.linear.x = linear_speed
         self.vel.angular.z = 0.0
         self.cmd_vel_pub.publish(self.vel)
+
+    def make_pose(self, x, y, yaw=0.0):
+        pose = Pose()
+        pose.position.x = float(x)
+        pose.position.y = float(y)
+        pose.position.z = 0.0
+
+        half_yaw = 0.5 * float(yaw)
+        pose.orientation.x = 0.0
+        pose.orientation.y = 0.0
+        pose.orientation.z = math.sin(half_yaw)
+        pose.orientation.w = math.cos(half_yaw)
+        return pose
+
+    def publish_goals(self):
+        if not self.segments:
+            return
+
+        msg = Goals()
+
+        # current goal
+        current_seg = self.segments[self.segment_index]
+        msg.current_goal = self.make_pose(
+            current_seg['target_x'],
+            current_seg['target_y'],
+            current_seg['target_theta']
+        )
+
+        # next goal (if any)
+        next_index = self.segment_index + 1
+        if next_index < len(self.segments):
+            next_seg = self.segments[next_index]
+            msg.next_goal = self.make_pose(
+                next_seg['target_x'],
+                next_seg['target_y'],
+                next_seg['target_theta']
+            )
+            msg.has_next_goal = True
+        else:
+            msg.next_goal = msg.current_goal
+            msg.has_next_goal = False
+
+        self.goals_pub.publish(msg)
 
     # =============================================================
     # Carga de waypoints
@@ -442,6 +491,7 @@ class PathGenerator(Node):
             self.publish_stop()
             if self.elapsed_time() >= self.initial_stop_time:
                 self.load_current_segment()
+                self.publish_goals()
                 self.state = 'turn'
                 self.reset_time_reference()
                 self.get_logger().info(
@@ -483,6 +533,7 @@ class PathGenerator(Node):
                     self.get_logger().info("Path completed. Final stop.")
                 else:
                     self.load_current_segment()
+                    self.publish_goals()
                     self.state = 'turn'
                     self.reset_time_reference()
                     self.get_logger().info(
