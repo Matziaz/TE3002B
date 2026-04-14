@@ -72,7 +72,6 @@ class GoToGoalController(Node):
 
         self.declare_parameter('turn_in_place_threshold', 0.80)
         self.declare_parameter('settle_time', 0.50)
-        self.declare_parameter('use_sim_time', False)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.odom_topic = str(self.get_parameter('odom_topic').value)
