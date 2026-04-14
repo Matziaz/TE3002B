@@ -1,0 +1,20 @@
+odometry_node:
+  ros__parameters:
+    use_sim_time: true
+
+    right_wheel_topic: "/VelocityEncR"
+    left_wheel_topic: "/VelocityEncL"
+    odom_topic: "/odom"
+
+    publish_rate: 50.0
+    wheel_radius: 0.05
+    wheel_base: 0.19
+    encoders_are_angular_speed: true
+
+    start_x: 0.0
+    start_y: 0.0
+    start_theta: 0.0
+
+    odom_frame_id: "odom"
+    base_frame_id: "base_link"
+    encoder_timeout_seconds: 0.5

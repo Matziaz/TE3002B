@@ -18,12 +18,14 @@ setup(
     zip_safe=True,
     maintainer="Mati",
     maintainer_email="A01772503@tec.mx",
-    description="MCR Activity 1 - Puzzlebot speed estimator from wheel encoders",
+    description="MCR Activities 1-3: speed estimation, odometry, and go-to-goal for Puzzlebot",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "speed_estimator_node = square_controller.speed_estimator_node:main",
+            "odometry_node = square_controller.odometry_node:main",
+            "go_to_goal_node = square_controller.go_to_goal_node:main",
         ],
     },
 )

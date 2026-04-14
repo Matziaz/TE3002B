@@ -2,13 +2,14 @@
 <package format="3">
   <name>square_controller</name>
   <version>1.0.0</version>
-  <description>MCR Activity 1 - Puzzlebot speed estimator from wheel encoders</description>
+  <description>MCR Activities 1-3: speed estimation, odometry, and go-to-goal for Puzzlebot</description>
 
   <maintainer email="A01772503@tec.mx">Mati</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
