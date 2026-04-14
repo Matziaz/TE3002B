@@ -1,70 +1,46 @@
 square_controller:
   ros__parameters:
-    # =========================
-    # Modo de operación
-    # =========================
-    # "speed" -> usuario da velocidades, nodo calcula tiempos
-    # "time"  -> usuario da tiempo total, nodo calcula velocidades
-    mode: "speed"
+    mode: "pid"
 
-    # =========================
-    # Geometría de la trayectoria
-    # =========================
+    # Geometria de la trayectoria (cuadrado)
     side_length: 2.0
+    start_x: 0.0
+    start_y: 0.0
+    start_theta: 0.0
 
-    # =========================
-    # Parámetros para mode="speed"
-    # =========================
-    linear_speed: 0.15
-    angular_speed: 0.35
+    # Topicos ROS
+    use_sim_time: false
+    cmd_vel_topic: "/cmd_vel"
+    odom_topic: "/odom"
+    control_rate: 20.0
 
-    # =========================
-    # Parámetros para mode="time"
-    # =========================
-    total_time: 80.0
-    turn_time_ratio: 0.30
+    # Tolerancias
+    distance_tolerance: 0.05
+    heading_tolerance: 0.06
+    heading_priority_threshold: 0.45
 
-    # =========================
-    # Límites mínimos
-    # =========================
+    # Limites de velocidad
+    max_linear_speed: 0.25
+    max_angular_speed: 0.80
     min_linear_speed: 0.05
     min_angular_speed: 0.10
 
-    # =========================
-    # Parámetros físicos del robot
-    # =========================
-    wheel_radius: 0.0505
-    wheel_base: 0.175
-    motor_rpm_nominal: 176.0
-    nominal_voltage: 6.0
-    operating_voltage: 4.8
+    # PID lineal (distancia)
+    kp_linear: 0.90
+    ki_linear: 0.02
+    kd_linear: 0.08
 
-    # =========================
-    # Límites teóricos / manuales
-    # =========================
-    use_theoretical_limits: true
+    # PID angular (orientacion)
+    kp_angular: 2.80
+    ki_angular: 0.04
+    kd_angular: 0.16
 
-    # Factores de seguridad aplicados a los máximos teóricos
-    linear_speed_safety_factor: 0.50
-    angular_speed_safety_factor: 0.50
+    # Robustez del PID
+    linear_integral_limit: 0.50
+    angular_integral_limit: 0.80
+    derivative_filter_alpha: 0.80
 
-    # Si use_theoretical_limits = false, se usan estos:
-    max_linear_speed_manual: 0.25
-    max_angular_speed_manual: 0.80
-
-    # =========================
-    # Pausas para medición
-    # =========================
+    # Pausas para medicion
     initial_stop_time: 2.0
     point_stop_time: 2.0
     final_stop_time: 2.0
-
-    # =========================
-    # ROS
-    # =========================
-    use_sim_time: false
-    cmd_vel_topic: "/cmd_vel"
-    control_rate: 20.0
-
-    # +1 = giro positivo, -1 = giro negativo
-    turn_direction: 1.0

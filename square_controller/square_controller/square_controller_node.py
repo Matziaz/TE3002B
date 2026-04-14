@@ -3,6 +3,47 @@ import rclpy
 
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+
+
+class PIDController:
+    def __init__(self, kp, ki, kd, integral_limit, derivative_filter_alpha):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.integral_limit = abs(integral_limit)
+        self.alpha = max(0.0, min(1.0, derivative_filter_alpha))
+
+        self.integral = 0.0
+        self.prev_error = 0.0
+        self.prev_derivative = 0.0
+        self.initialized = False
+
+    def reset(self):
+        self.integral = 0.0
+        self.prev_error = 0.0
+        self.prev_derivative = 0.0
+        self.initialized = False
+
+    def update(self, error, dt):
+        if dt <= 1e-6:
+            dt = 1e-3
+
+        if not self.initialized:
+            self.prev_error = error
+            self.initialized = True
+
+        self.integral += error * dt
+        self.integral = max(-self.integral_limit, min(self.integral, self.integral_limit))
+
+        raw_derivative = (error - self.prev_error) / dt
+        derivative = self.alpha * self.prev_derivative + (1.0 - self.alpha) * raw_derivative
+
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+
+        self.prev_error = error
+        self.prev_derivative = derivative
+        return output
 
 
 class SquareController(Node):
@@ -10,370 +51,305 @@ class SquareController(Node):
     def __init__(self):
         super().__init__('square_controller')
 
-        # =========================
-        # Parámetros ROS2
-        # =========================
-        self.declare_parameter('mode', 'speed')  # 'speed' o 'time'
+        # Compatibilidad con config existente
+        self.declare_parameter('mode', 'pid')
+
+        # Geometria
         self.declare_parameter('side_length', 2.0)
+        self.declare_parameter('start_x', 0.0)
+        self.declare_parameter('start_y', 0.0)
+        self.declare_parameter('start_theta', 0.0)
 
-        # Modo speed
-        self.declare_parameter('linear_speed', 0.15)
-        self.declare_parameter('angular_speed', 0.35)
+        # ROS
+        self.declare_parameter('cmd_vel_topic', '/cmd_vel')
+        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('control_rate', 20.0)
 
-        # Modo time
-        self.declare_parameter('total_time', 80.0)
-        self.declare_parameter('turn_time_ratio', 0.30)  # % del tiempo para giros
+        # Tolerancias
+        self.declare_parameter('distance_tolerance', 0.05)
+        self.declare_parameter('heading_tolerance', 0.06)
+        self.declare_parameter('heading_priority_threshold', 0.45)
 
-        # Robustez / límites
+        # Limites
         self.declare_parameter('max_linear_speed', 0.25)
         self.declare_parameter('max_angular_speed', 0.80)
-        self.declare_parameter('min_linear_speed', 0.05)
+        self.declare_parameter('min_linear_speed', 0.03)
         self.declare_parameter('min_angular_speed', 0.10)
 
-        # Pausas
+        # PID lineal
+        self.declare_parameter('kp_linear', 0.9)
+        self.declare_parameter('ki_linear', 0.02)
+        self.declare_parameter('kd_linear', 0.08)
+
+        # PID angular
+        self.declare_parameter('kp_angular', 2.8)
+        self.declare_parameter('ki_angular', 0.04)
+        self.declare_parameter('kd_angular', 0.16)
+
+        # Anti-windup y filtro derivativo
+        self.declare_parameter('linear_integral_limit', 0.5)
+        self.declare_parameter('angular_integral_limit', 0.8)
+        self.declare_parameter('derivative_filter_alpha', 0.80)
+
+        # Pausas para medicion
         self.declare_parameter('initial_stop_time', 2.0)
         self.declare_parameter('point_stop_time', 2.0)
         self.declare_parameter('final_stop_time', 2.0)
 
-        # ROS
-        self.declare_parameter('cmd_vel_topic', '/cmd_vel')
-        self.declare_parameter('control_rate', 20.0)
-
-        # Giro
-        self.declare_parameter('turn_direction', 1.0)  # +1 izquierda, -1 derecha
-
-        # =========================
-        # Leer parámetros
-        # =========================
-        self.mode = str(self.get_parameter('mode').value).strip().lower()
+        self.mode = str(self.get_parameter('mode').value)
         self.side_length = float(self.get_parameter('side_length').value)
+        self.start_x = float(self.get_parameter('start_x').value)
+        self.start_y = float(self.get_parameter('start_y').value)
+        self.start_theta = float(self.get_parameter('start_theta').value)
 
-        self.linear_speed = float(self.get_parameter('linear_speed').value)
-        self.angular_speed = float(self.get_parameter('angular_speed').value)
+        self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
+        self.odom_topic = str(self.get_parameter('odom_topic').value)
+        self.control_rate = float(self.get_parameter('control_rate').value)
 
-        self.total_time = float(self.get_parameter('total_time').value)
-        self.turn_time_ratio = float(self.get_parameter('turn_time_ratio').value)
+        self.distance_tolerance = float(self.get_parameter('distance_tolerance').value)
+        self.heading_tolerance = float(self.get_parameter('heading_tolerance').value)
+        self.heading_priority_threshold = float(self.get_parameter('heading_priority_threshold').value)
 
         self.max_linear_speed = float(self.get_parameter('max_linear_speed').value)
         self.max_angular_speed = float(self.get_parameter('max_angular_speed').value)
         self.min_linear_speed = float(self.get_parameter('min_linear_speed').value)
         self.min_angular_speed = float(self.get_parameter('min_angular_speed').value)
 
+        self.kp_linear = float(self.get_parameter('kp_linear').value)
+        self.ki_linear = float(self.get_parameter('ki_linear').value)
+        self.kd_linear = float(self.get_parameter('kd_linear').value)
+
+        self.kp_angular = float(self.get_parameter('kp_angular').value)
+        self.ki_angular = float(self.get_parameter('ki_angular').value)
+        self.kd_angular = float(self.get_parameter('kd_angular').value)
+
+        self.linear_integral_limit = float(self.get_parameter('linear_integral_limit').value)
+        self.angular_integral_limit = float(self.get_parameter('angular_integral_limit').value)
+        self.derivative_filter_alpha = float(self.get_parameter('derivative_filter_alpha').value)
+
         self.initial_stop_time = float(self.get_parameter('initial_stop_time').value)
         self.point_stop_time = float(self.get_parameter('point_stop_time').value)
         self.final_stop_time = float(self.get_parameter('final_stop_time').value)
 
-        self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
-        self.control_rate = float(self.get_parameter('control_rate').value)
-
-        self.turn_direction = float(self.get_parameter('turn_direction').value)
-
-        # =========================
-        # Validaciones básicas
-        # =========================
-        if self.mode not in ['speed', 'time']:
-            self.get_logger().warn(f"Invalid mode '{self.mode}'. Using 'speed'.")
-            self.mode = 'speed'
-
         if self.side_length <= 0.0:
-            self.get_logger().warn("side_length <= 0. Using default 2.0")
+            self.get_logger().warn('side_length <= 0. Using default 2.0')
             self.side_length = 2.0
 
         if self.control_rate <= 0.0:
-            self.get_logger().warn("control_rate <= 0. Using default 20.0")
+            self.get_logger().warn('control_rate <= 0. Using default 20.0')
             self.control_rate = 20.0
 
-        if self.turn_direction >= 0.0:
-            self.turn_direction = 1.0
-        else:
-            self.turn_direction = -1.0
+        self.distance_tolerance = max(0.01, self.distance_tolerance)
+        self.heading_tolerance = max(0.01, self.heading_tolerance)
+        self.heading_priority_threshold = max(self.heading_tolerance, self.heading_priority_threshold)
 
-        # =========================
-        # Auto-tuning
-        # =========================
-        self.compute_motion_parameters()
+        self.max_linear_speed = max(0.01, self.max_linear_speed)
+        self.max_angular_speed = max(0.05, self.max_angular_speed)
+        self.min_linear_speed = max(0.0, min(self.min_linear_speed, self.max_linear_speed))
+        self.min_angular_speed = max(0.0, min(self.min_angular_speed, self.max_angular_speed))
 
-        # =========================
-        # Variables FSM
-        # =========================
-        self.state = "initial_stop"
-        self.segment_count = 0
-        self.current_point_index = 1  # arranca en p1, primer objetivo es p2
+        # Ruta cuadrada: p1 -> p2 -> p3 -> p4 -> p1
+        p1 = (self.start_x, self.start_y)
+        p2 = (self.start_x + self.side_length, self.start_y)
+        p3 = (self.start_x + self.side_length, self.start_y + self.side_length)
+        p4 = (self.start_x, self.start_y + self.side_length)
+        self.waypoints = [p2, p3, p4, p1]
+        self.vertex_headings = [math.pi / 2.0, math.pi, -math.pi / 2.0, 0.0]
+
+        # Estado
+        self.state = 'initial_stop'
+        self.target_index = 0
         self.start_time = self.get_clock().now()
+        self.last_control_time = self.get_clock().now()
 
-        # =========================
-        # ROS interfaces
-        # =========================
+        self.odom_ready = False
+        self.current_x = self.start_x
+        self.current_y = self.start_y
+        self.current_theta = self.start_theta
+
+        # Controladores PID
+        self.linear_pid = PIDController(
+            self.kp_linear,
+            self.ki_linear,
+            self.kd_linear,
+            self.linear_integral_limit,
+            self.derivative_filter_alpha,
+        )
+        self.angular_pid = PIDController(
+            self.kp_angular,
+            self.ki_angular,
+            self.kd_angular,
+            self.angular_integral_limit,
+            self.derivative_filter_alpha,
+        )
+
         self.cmd_vel_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
+        self.odom_sub = self.create_subscription(Odometry, self.odom_topic, self.odom_callback, 10)
 
         timer_period = 1.0 / self.control_rate
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         self.vel = Twist()
 
-        # =========================
-        # Logs de configuración
-        # =========================
-        self.get_logger().info("Node initialized!!!")
-        self.get_logger().info(f"Mode: {self.mode}")
-        self.get_logger().info(f"side_length = {self.side_length:.3f} m")
-        self.get_logger().info(f"linear_speed = {self.linear_speed:.3f} m/s")
-        self.get_logger().info(f"angular_speed = {self.angular_speed:.3f} rad/s")
-        self.get_logger().info(f"forward_time = {self.forward_time:.3f} s")
-        self.get_logger().info(f"turn_time = {self.turn_time:.3f} s")
+        self.get_logger().info('Closed-loop PID square controller initialized.')
+        self.get_logger().info(f'side_length={self.side_length:.3f} m | control_rate={self.control_rate:.1f} Hz')
+        self.get_logger().info(f'cmd_vel_topic={self.cmd_vel_topic} | odom_topic={self.odom_topic}')
         self.get_logger().info(
-            f"Pauses: initial={self.initial_stop_time:.2f}s, "
-            f"point={self.point_stop_time:.2f}s, final={self.final_stop_time:.2f}s"
+            f'PID linear=(kp={self.kp_linear:.3f}, ki={self.ki_linear:.3f}, kd={self.kd_linear:.3f}) | '
+            f'PID angular=(kp={self.kp_angular:.3f}, ki={self.ki_angular:.3f}, kd={self.kd_angular:.3f})'
         )
-        self.get_logger().info(
-            f"Limits: vmax={self.max_linear_speed:.3f} m/s, "
-            f"wmax={self.max_angular_speed:.3f} rad/s"
-        )
-        self.get_logger().info(
-            f"cmd_vel_topic={self.cmd_vel_topic}, control_rate={self.control_rate:.1f} Hz"
-        )
-        self.get_logger().info("Robot must start at p1 facing toward p2.")
 
-    # ==================================================
-    # Auto-tuning / robustez
-    # ==================================================
+    def normalize_angle(self, angle):
+        return math.atan2(math.sin(angle), math.cos(angle))
+
     def clamp(self, value, vmin, vmax):
         return max(vmin, min(value, vmax))
 
-    def compute_motion_parameters(self):
-        """
-        Modo speed:
-            usuario da linear_speed y angular_speed
-            -> se calculan forward_time y turn_time
-
-        Modo time:
-            usuario da total_time
-            -> se calculan linear_speed y angular_speed
-        """
-
-        # Validación de pausas
-        total_pause_time = self.initial_stop_time + 4.0 * self.point_stop_time + self.final_stop_time
-
-        if self.mode == 'speed':
-            if self.linear_speed <= 0.0:
-                self.get_logger().warn("linear_speed <= 0. Using 0.15")
-                self.linear_speed = 0.15
-
-            if self.angular_speed <= 0.0:
-                self.get_logger().warn("angular_speed <= 0. Using 0.35")
-                self.angular_speed = 0.35
-
-            # Saturación para robustez
-            if self.linear_speed > self.max_linear_speed:
-                self.get_logger().warn(
-                    f"Requested linear_speed={self.linear_speed:.3f} exceeds max. "
-                    f"Clamping to {self.max_linear_speed:.3f}"
-                )
-                self.linear_speed = self.max_linear_speed
-
-            if self.angular_speed > self.max_angular_speed:
-                self.get_logger().warn(
-                    f"Requested angular_speed={self.angular_speed:.3f} exceeds max. "
-                    f"Clamping to {self.max_angular_speed:.3f}"
-                )
-                self.angular_speed = self.max_angular_speed
-
-            if self.linear_speed < self.min_linear_speed:
-                self.get_logger().warn(
-                    f"Requested linear_speed too low. Raising to {self.min_linear_speed:.3f}"
-                )
-                self.linear_speed = self.min_linear_speed
-
-            if self.angular_speed < self.min_angular_speed:
-                self.get_logger().warn(
-                    f"Requested angular_speed too low. Raising to {self.min_angular_speed:.3f}"
-                )
-                self.angular_speed = self.min_angular_speed
-
-            self.forward_time = self.side_length / self.linear_speed
-            self.turn_time = (math.pi / 2.0) / self.angular_speed
-
-            estimated_total = 4.0 * self.forward_time + 4.0 * self.turn_time + total_pause_time
-            self.get_logger().info(
-                f"[AUTO-TUNE] Speed mode -> estimated total execution time = {estimated_total:.2f} s"
-            )
-
-        else:  # mode == 'time'
-            if self.total_time <= 0.0:
-                self.get_logger().warn("total_time <= 0. Using 80.0")
-                self.total_time = 80.0
-
-            # asegurar rango razonable
-            self.turn_time_ratio = self.clamp(self.turn_time_ratio, 0.10, 0.50)
-
-            available_motion_time = self.total_time - total_pause_time
-
-            if available_motion_time <= 0.0:
-                self.get_logger().warn(
-                    "total_time is too small after subtracting pauses. "
-                    "Using minimum feasible motion time."
-                )
-                available_motion_time = 20.0
-
-            move_total = (1.0 - self.turn_time_ratio) * available_motion_time
-            turn_total = self.turn_time_ratio * available_motion_time
-
-            self.forward_time = move_total / 4.0
-            self.turn_time = turn_total / 4.0
-
-            # evitar tiempos imposibles
-            self.forward_time = max(self.forward_time, 0.1)
-            self.turn_time = max(self.turn_time, 0.1)
-
-            raw_linear_speed = self.side_length / self.forward_time
-            raw_angular_speed = (math.pi / 2.0) / self.turn_time
-
-            reachable = True
-
-            # Saturación
-            self.linear_speed = raw_linear_speed
-            self.angular_speed = raw_angular_speed
-
-            if self.linear_speed > self.max_linear_speed:
-                self.get_logger().warn(
-                    f"[AUTO-TUNE] Computed linear_speed={self.linear_speed:.3f} exceeds max "
-                    f"{self.max_linear_speed:.3f}. Clamping."
-                )
-                self.linear_speed = self.max_linear_speed
-                reachable = False
-
-            if self.angular_speed > self.max_angular_speed:
-                self.get_logger().warn(
-                    f"[AUTO-TUNE] Computed angular_speed={self.angular_speed:.3f} exceeds max "
-                    f"{self.max_angular_speed:.3f}. Clamping."
-                )
-                self.angular_speed = self.max_angular_speed
-                reachable = False
-
-            if self.linear_speed < self.min_linear_speed:
-                self.get_logger().warn(
-                    f"[AUTO-TUNE] Computed linear_speed too low. Raising to {self.min_linear_speed:.3f}"
-                )
-                self.linear_speed = self.min_linear_speed
-
-            if self.angular_speed < self.min_angular_speed:
-                self.get_logger().warn(
-                    f"[AUTO-TUNE] Computed angular_speed too low. Raising to {self.min_angular_speed:.3f}"
-                )
-                self.angular_speed = self.min_angular_speed
-
-            # Recalcular tiempos reales después de saturar
-            self.forward_time = self.side_length / self.linear_speed
-            self.turn_time = (math.pi / 2.0) / self.angular_speed
-
-            actual_total = 4.0 * self.forward_time + 4.0 * self.turn_time + total_pause_time
-
-            if reachable:
-                self.get_logger().info(
-                    "[AUTO-TUNE] Time mode -> requested time is dynamically reachable."
-                )
-            else:
-                self.get_logger().warn(
-                    "[AUTO-TUNE] Requested total_time was not fully reachable with robot limits. "
-                    "Controller adjusted to safe max/min speeds."
-                )
-
-            self.get_logger().info(
-                f"[AUTO-TUNE] Time mode -> adjusted total execution time = {actual_total:.2f} s"
-            )
-
-    # ==================================================
-    # Utilidades de tiempo
-    # ==================================================
     def elapsed_time(self):
         return (self.get_clock().now().nanoseconds - self.start_time.nanoseconds) / 1e9
 
     def reset_time_reference(self):
         self.start_time = self.get_clock().now()
 
-    # ==================================================
-    # Publicación de velocidades
-    # ==================================================
+    def current_dt(self):
+        now = self.get_clock().now()
+        dt = (now.nanoseconds - self.last_control_time.nanoseconds) / 1e9
+        self.last_control_time = now
+        if dt <= 1e-6:
+            return 1.0 / self.control_rate
+        return dt
+
+    def odom_callback(self, msg):
+        self.current_x = float(msg.pose.pose.position.x)
+        self.current_y = float(msg.pose.pose.position.y)
+
+        qx = float(msg.pose.pose.orientation.x)
+        qy = float(msg.pose.pose.orientation.y)
+        qz = float(msg.pose.pose.orientation.z)
+        qw = float(msg.pose.pose.orientation.w)
+
+        siny_cosp = 2.0 * (qw * qz + qx * qy)
+        cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
+        self.current_theta = math.atan2(siny_cosp, cosy_cosp)
+
+        self.odom_ready = True
+
     def publish_stop(self):
         self.vel.linear.x = 0.0
         self.vel.angular.z = 0.0
         self.cmd_vel_pub.publish(self.vel)
 
-    def publish_forward(self):
-        self.vel.linear.x = self.linear_speed
-        self.vel.angular.z = 0.0
+    def publish_cmd(self, linear, angular):
+        self.vel.linear.x = float(linear)
+        self.vel.angular.z = float(angular)
         self.cmd_vel_pub.publish(self.vel)
 
-    def publish_turn(self):
-        self.vel.linear.x = 0.0
-        self.vel.angular.z = self.turn_direction * self.angular_speed
-        self.cmd_vel_pub.publish(self.vel)
+    def reset_controllers(self):
+        self.linear_pid.reset()
+        self.angular_pid.reset()
 
-    def next_point_name(self):
-        names = ["p1", "p2", "p3", "p4"]
-        return names[self.current_point_index % 4]
+    def compute_go_to_point_cmd(self, goal_x, goal_y, dt):
+        dx = goal_x - self.current_x
+        dy = goal_y - self.current_y
+        distance_error = math.hypot(dx, dy)
 
-    # ==================================================
-    # FSM
-    # ==================================================
+        desired_heading = math.atan2(dy, dx)
+        heading_error = self.normalize_angle(desired_heading - self.current_theta)
+
+        if distance_error <= self.distance_tolerance:
+            return True, 0.0, 0.0
+
+        linear_cmd = self.linear_pid.update(distance_error, dt)
+        angular_cmd = self.angular_pid.update(heading_error, dt)
+
+        # Prioriza orientar el robot cuando el error angular es grande.
+        if abs(heading_error) > self.heading_priority_threshold:
+            linear_cmd = 0.0
+
+        linear_cmd = self.clamp(linear_cmd, 0.0, self.max_linear_speed)
+        if 0.0 < linear_cmd < self.min_linear_speed and distance_error > self.distance_tolerance:
+            linear_cmd = self.min_linear_speed
+
+        angular_mag = self.clamp(abs(angular_cmd), 0.0, self.max_angular_speed)
+        if 0.0 < angular_mag < self.min_angular_speed and abs(heading_error) > self.heading_tolerance:
+            angular_mag = self.min_angular_speed
+        angular_cmd = math.copysign(angular_mag, angular_cmd)
+
+        return False, linear_cmd, angular_cmd
+
+    def compute_heading_align_cmd(self, heading_ref, dt):
+        heading_error = self.normalize_angle(heading_ref - self.current_theta)
+        if abs(heading_error) <= self.heading_tolerance:
+            return True, 0.0
+
+        angular_cmd = self.angular_pid.update(heading_error, dt)
+        angular_mag = self.clamp(abs(angular_cmd), 0.0, self.max_angular_speed)
+        if 0.0 < angular_mag < self.min_angular_speed:
+            angular_mag = self.min_angular_speed
+        return False, math.copysign(angular_mag, angular_cmd)
+
     def timer_callback(self):
+        dt = self.current_dt()
 
-        if self.state == "initial_stop":
+        if not self.odom_ready:
+            self.publish_stop()
+            return
+
+        if self.state == 'initial_stop':
             self.publish_stop()
 
             if self.elapsed_time() >= self.initial_stop_time:
-                self.state = "move_forward"
+                self.state = 'go_to_point'
+                self.reset_controllers()
                 self.reset_time_reference()
-                self.get_logger().info("Starting motion: p1 -> p2")
+                self.get_logger().info('Starting closed-loop square tracking.')
 
-        elif self.state == "move_forward":
-            self.publish_forward()
+        elif self.state == 'go_to_point':
+            goal_x, goal_y = self.waypoints[self.target_index]
+            reached, linear_cmd, angular_cmd = self.compute_go_to_point_cmd(goal_x, goal_y, dt)
+            self.publish_cmd(linear_cmd, angular_cmd)
 
-            if self.elapsed_time() >= self.forward_time:
+            if reached:
                 self.publish_stop()
-                self.state = "point_stop"
+                self.state = 'align_vertex'
+                self.reset_controllers()
                 self.reset_time_reference()
+                self.get_logger().info(f'Reached waypoint {self.target_index + 1}. Aligning heading.')
 
-                reached_point = self.next_point_name()
-                self.get_logger().info(
-                    f"Reached {reached_point}. Hold position for measurement."
-                )
+        elif self.state == 'align_vertex':
+            heading_ref = self.vertex_headings[self.target_index]
+            aligned, angular_cmd = self.compute_heading_align_cmd(heading_ref, dt)
+            self.publish_cmd(0.0, angular_cmd)
 
-        elif self.state == "point_stop":
+            if aligned:
+                self.publish_stop()
+                self.state = 'point_stop'
+                self.reset_time_reference()
+                self.get_logger().info('Heading aligned. Hold position for measurement.')
+
+        elif self.state == 'point_stop':
             self.publish_stop()
 
             if self.elapsed_time() >= self.point_stop_time:
-                if self.segment_count >= 3:
-                    self.state = "final_stop"
+                self.target_index += 1
+                if self.target_index >= len(self.waypoints):
+                    self.state = 'final_stop'
                     self.reset_time_reference()
-                    self.get_logger().info("Square completed. Final stop.")
+                    self.get_logger().info('Square completed. Final stop.')
                 else:
-                    self.state = "turn"
+                    self.state = 'go_to_point'
+                    self.reset_controllers()
                     self.reset_time_reference()
-                    self.get_logger().info("Turning 90 degrees to next segment.")
+                    self.get_logger().info(f'Starting segment {self.target_index + 1}.')
 
-        elif self.state == "turn":
-            self.publish_turn()
-
-            if self.elapsed_time() >= self.turn_time:
-                self.publish_stop()
-
-                self.segment_count += 1
-                self.current_point_index += 1
-
-                next_target = self.next_point_name()
-                self.state = "move_forward"
-                self.reset_time_reference()
-                self.get_logger().info(f"Starting segment toward {next_target}")
-
-        elif self.state == "final_stop":
+        elif self.state == 'final_stop':
             self.publish_stop()
 
             if self.elapsed_time() >= self.final_stop_time:
-                self.state = "done"
-                self.get_logger().info("Done.")
+                self.state = 'done'
+                self.get_logger().info('Done.')
 
-        elif self.state == "done":
+        elif self.state == 'done':
             self.publish_stop()
 
 
