@@ -2,9 +2,9 @@
 <package format="3">
   <name>mobile_robotics</name>
   <version>1.0.0</version>
-  <description>MCR Activities 1-3: speed estimation, odometry, and go-to-goal for Puzzlebot</description>
+  <description>Mobile Robotics</description>
 
-  <maintainer email="A01772503@tec.mx">Mati</maintainer>
+  <maintainer email="A01711740@tec.mx">liz</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
