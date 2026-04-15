@@ -23,9 +23,9 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "speed_estimator_node = square_controller.speed_estimator_node:main",
-            "odometry_node = square_controller.odometry_node:main",
-            "go_to_goal_node = square_controller.go_to_goal_node:main",
+            "speed_estimator_node = mobile_robotics.speed_estimator_node:main",
+            "odometry_node = mobile_robotics.odometry_node:main",
+            "go_to_goal_node = mobile_robotics.go_to_goal_node:main",
         ],
     },
 )
