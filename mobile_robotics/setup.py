@@ -23,6 +23,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
+            "encoder_simulator = mobile_robotics.encoder_simulator:main",
             "odometry_speed_estimator = mobile_robotics.odometry_speed_estimator:main",
             "go_to_goal_controller = mobile_robotics.go_to_goal_controller:main",
         ],
