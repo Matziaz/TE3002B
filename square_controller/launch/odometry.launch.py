@@ -6,12 +6,12 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    pkg_dir = get_package_share_directory('square_controller')
+    pkg_dir = get_package_share_directory('mobile_robotics')
     params_file = os.path.join(pkg_dir, 'config', 'odometry_params.yaml')
 
     return LaunchDescription([
         Node(
-            package='square_controller',
+            package='mobile_robotics',
             executable='odometry_node',
             name='odometry_node',
             output='screen',

@@ -2,32 +2,41 @@ go_to_goal_node:
   ros__parameters:
     use_sim_time: true
 
-    cmd_vel_topic: "/cmd_vel"
-    odom_topic: "/odom"
-    goal_topic: "/goal_pose"
-    control_rate: 20.0
+    # Topic Configuration
+    cmd_vel_topic: "/cmd_vel"           # Output velocity commands to robot
+    odom_topic: "/odom"                 # Input: odometry pose updates
+    goal_topic: "/goal_pose"            # Input: dynamic goal updates (if listen_goal_topic=true)
+    control_rate: 20.0                  # Control loop frequency (Hz)
 
-    goal_x: 1.0
-    goal_y: 0.0
-    listen_goal_topic: false
+    # Default Goal Position
+    goal_x: 1.0                         # Target x position (meters)
+    goal_y: 0.0                         # Target y position (meters)
+    listen_goal_topic: false            # If true: listen to /goal_pose topic; if false: use goal_x/goal_y params
 
-    distance_tolerance: 0.05
-    heading_tolerance: 0.05
-    settle_time: 0.5
+    # Convergence Tolerances
+    distance_tolerance: 0.05            # Distance error threshold (meters) - goal reached if < this
+    heading_tolerance: 0.05             # Angle error threshold (radians) - goal reached if < this
+    settle_time: 0.5                    # Time (seconds) to maintain tolerance before marking goal complete
 
-    max_linear_speed: 0.35
-    max_angular_speed: 1.2
-    min_linear_speed: 0.03
-    min_angular_speed: 0.05
+    # Speed Limits
+    max_linear_speed: 0.35              # Maximum forward velocity (m/s)
+    max_angular_speed: 1.2              # Maximum rotation velocity (rad/s)
+    min_linear_speed: 0.03              # Minimum forward velocity to command (m/s) - prevents stalling
+    min_angular_speed: 0.05             # Minimum rotation velocity to command (rad/s)
 
-    kp_linear: 0.8
-    ki_linear: 0.0
-    kd_linear: 0.0
+    # LINEAR PID Gains (controls movement toward goal)
+    kp_linear: 0.8                      # Proportional: higher = more aggressive movement
+    ki_linear: 0.0                      # Integral: corrects steady-state error (usually 0 for this task)
+    kd_linear: 0.0                      # Derivative: smooths acceleration (usually 0 for this task)
 
-    kp_angular: 2.5
-    ki_angular: 0.0
-    kd_angular: 0.0
+    # ANGULAR PID Gains (controls rotation toward goal heading)
+    kp_angular: 2.5                     # Proportional: higher = faster rotation correction
+    ki_angular: 0.0                     # Integral: usually 0
+    kd_angular: 0.0                     # Derivative: usually 0
 
-    linear_integral_limit: 0.8
-    angular_integral_limit: 1.0
-    turn_in_place_threshold: 0.8
+    # PID Anti-Windup Limits
+    linear_integral_limit: 0.8          # Max integral accumulation for linear PID (prevents windup)
+    angular_integral_limit: 1.0         # Max integral accumulation for angular PID (prevents windup)
+    
+    # Special Behavior
+    turn_in_place_threshold: 0.8        # If |heading_error| > this (radians): only rotate, don't move forward

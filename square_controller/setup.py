@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 from glob import glob
 
-package_name = "square_controller"
+package_name = "mobile_robotics"
 
 setup(
     name=package_name,

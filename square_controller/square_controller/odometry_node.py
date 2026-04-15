@@ -133,6 +133,13 @@ class OdometryNode(Node):
         odom_msg.twist.twist.angular.z = float(w)
 
         self.odom_pub.publish(odom_msg)
+        
+        # Log pose periodically (every 50 publishes = ~1 second at 50Hz)
+        if int(now.nanoseconds / 1e7) % 5 == 0:
+            self.get_logger().debug(
+                f'Pose: x={self.x:.3f}, y={self.y:.3f}, θ={self.theta:.3f} | '
+                f'Vel: v={v:.2f}, ω={w:.2f} | Encoders: R={self.wr:.2f}, L={self.wl:.2f}'
+            )
 
 
 def main(args=None):
