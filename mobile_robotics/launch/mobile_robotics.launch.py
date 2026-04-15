@@ -11,7 +11,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='mobile_robotics',
-            executable='mobile_robotics_node',
+            executable='differential_drive_controller',
             name='differential_drive_controller',
             output='screen',
             parameters=[params_file],
