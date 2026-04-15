@@ -2,41 +2,33 @@ go_to_goal_node:
   ros__parameters:
     use_sim_time: true
 
-    # Topic Configuration
-    cmd_vel_topic: "/cmd_vel"           # Output velocity commands to robot
-    odom_topic: "/odom"                 # Input: odometry pose updates
-    goal_topic: "/goal_pose"            # Input: dynamic goal updates (if listen_goal_topic=true)
+    # ========== TOPIC CONFIGURATION ==========
+    cmd_vel_topic: "/cmd_vel"           # Output: velocity commands (v, ω)
+    odom_topic: "/odom"                 # Input: robot pose (x, y, θ)
+    goal_topic: "/goal_pose"            # Input: goal position (x_G, y_G)
     control_rate: 20.0                  # Control loop frequency (Hz)
 
-    # Default Goal Position
-    goal_x: 1.0                         # Target x position (meters)
-    goal_y: 0.0                         # Target y position (meters)
-    listen_goal_topic: false            # If true: listen to /goal_pose topic; if false: use goal_x/goal_y params
+    # ========== GOAL POSITION ==========
+    x_goal: 1.0                         # Target x position (meters)
+    y_goal: 0.0                         # Target y position (meters)
+    listen_goal_topic: false            # If true: listen to /goal_pose; if false: use x_goal/y_goal params
 
-    # Convergence Tolerances
-    distance_tolerance: 0.05            # Distance error threshold (meters) - goal reached if < this
-    heading_tolerance: 0.05             # Angle error threshold (radians) - goal reached if < this
+    # ========== TOLERANCES (e_d and e_θ) ==========
+    e_d_tolerance: 0.05                 # Distance error threshold: e_d < this → goal reached (meters)
+    e_theta_tolerance: 0.05             # Angular error threshold: e_θ < this → heading correct (radians)
     settle_time: 0.5                    # Time (seconds) to maintain tolerance before marking goal complete
 
-    # Speed Limits
-    max_linear_speed: 0.35              # Maximum forward velocity (m/s)
-    max_angular_speed: 1.2              # Maximum rotation velocity (rad/s)
-    min_linear_speed: 0.03              # Minimum forward velocity to command (m/s) - prevents stalling
-    min_angular_speed: 0.05             # Minimum rotation velocity to command (rad/s)
+    # ========== VELOCITY LIMITS ==========
+    v_max: 0.35                         # Maximum linear velocity (m/s) - v_max > 0
+    omega_max: 1.2                      # Maximum angular velocity (rad/s) - ω_max > 0
+    v_min: 0.03                         # Minimum linear velocity (m/s) - prevents stalling
+    omega_min: 0.05                     # Minimum angular velocity (rad/s) - prevents stalling
 
-    # LINEAR PID Gains (controls movement toward goal)
-    kp_linear: 0.8                      # Proportional: higher = more aggressive movement
-    ki_linear: 0.0                      # Integral: corrects steady-state error (usually 0 for this task)
-    kd_linear: 0.0                      # Derivative: smooths acceleration (usually 0 for this task)
-
-    # ANGULAR PID Gains (controls rotation toward goal heading)
-    kp_angular: 2.5                     # Proportional: higher = faster rotation correction
-    ki_angular: 0.0                     # Integral: usually 0
-    kd_angular: 0.0                     # Derivative: usually 0
-
-    # PID Anti-Windup Limits
-    linear_integral_limit: 0.8          # Max integral accumulation for linear PID (prevents windup)
-    angular_integral_limit: 1.0         # Max integral accumulation for angular PID (prevents windup)
+    # ========== CONTROLLER GAINS (proportional control) ==========
+    # v = k_v * e_d
+    # ω = k_ω * e_θ
+    k_v: 0.8                            # Linear gain: higher = faster approach to goal
+    k_omega: 2.5                        # Angular gain: higher = faster heading correction
     
     # Special Behavior
-    turn_in_place_threshold: 0.8        # If |heading_error| > this (radians): only rotate, don't move forward
+    turn_in_place_threshold: 0.8        # If |e_θ| > this (radians): only rotate (v=0), don't move forward
