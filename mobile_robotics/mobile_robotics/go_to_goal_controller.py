@@ -24,7 +24,6 @@ class GoToGoalController(Node):
 
         self.declare_parameter('proportional_velocity_gain', 0.8)
         self.declare_parameter('proportional_angular_gain', 2.5)
-        self.declare_parameter('velocity_smoothing_factor', 0.1)
 
         self.declare_parameter('max_linear_velocity', 0.5)
         self.declare_parameter('max_angular_velocity', 1.5)
@@ -46,7 +45,6 @@ class GoToGoalController(Node):
 
         self.k_v = max(1e-4, float(self.get_parameter('proportional_velocity_gain').value))
         self.k_omega = max(1e-4, float(self.get_parameter('proportional_angular_gain').value))
-        self.velocity_smoothing = max(0.0, float(self.get_parameter('velocity_smoothing_factor').value))
 
         self.max_linear = max(1e-4, float(self.get_parameter('max_linear_velocity').value))
         self.max_angular = max(1e-4, float(self.get_parameter('max_angular_velocity').value))
@@ -59,9 +57,6 @@ class GoToGoalController(Node):
         self.robot_x = 0.0
         self.robot_y = 0.0
         self.robot_heading = 0.0
-
-        self.prev_linear_command = 0.0
-        self.prev_angular_command = 0.0
 
         self.goal_reached = False
 
@@ -105,26 +100,15 @@ class GoToGoalController(Node):
             desired_heading = math.atan2(dy, dx)
             heading_error = self.normalize_angle(desired_heading - self.robot_heading)
 
-            decay_factor = math.exp(-distance_to_goal * 0.5)
-            cross_track_correction = distance_to_goal * decay_factor * 0.2
-            heading_damping = 0.3
-            effective_error = heading_error + cross_track_correction - heading_damping * self.robot_heading
+            linear_command = self.k_v * distance_to_goal
+            angular_command = self.k_omega * heading_error
 
-            linear_command = self.k_v * distance_to_goal * math.cos(heading_error)
-            angular_command = self.k_omega * effective_error
-
-            linear_command = self.clamp(linear_command, 0.0, self.linear_limit)
+            linear_command = self.clamp(linear_command, -self.linear_limit, self.linear_limit)
             angular_command = self.clamp(angular_command, -self.angular_limit, self.angular_limit)
 
-        smoothed_linear = self.velocity_smoothing * self.prev_linear_command + (1.0 - self.velocity_smoothing) * linear_command
-        smoothed_angular = self.velocity_smoothing * self.prev_angular_command + (1.0 - self.velocity_smoothing) * angular_command
-
-        self.prev_linear_command = smoothed_linear
-        self.prev_angular_command = smoothed_angular
-
         cmd_msg = Twist()
-        cmd_msg.linear.x = float(smoothed_linear)
-        cmd_msg.angular.z = float(smoothed_angular)
+        cmd_msg.linear.x = float(linear_command)
+        cmd_msg.angular.z = float(angular_command)
         self.velocity_command_pub.publish(cmd_msg)
 
 

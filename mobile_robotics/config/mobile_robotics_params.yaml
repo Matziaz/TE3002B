@@ -29,7 +29,6 @@ go_to_goal_controller:
     dynamic_goal_topic: '/goal_pose'
     proportional_velocity_gain: 0.8
     proportional_angular_gain: 2.5
-    velocity_smoothing_factor: 0.1
     max_linear_velocity: 0.5
     max_angular_velocity: 1.5
     linear_velocity_limit: 0.5
