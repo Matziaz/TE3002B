@@ -11,13 +11,6 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='mobile_robotics',
-            executable='odometry_speed_estimator',
-            name='odometry_speed_estimator',
-            output='screen',
-            parameters=[params_file],
-        ),
-        Node(
-            package='mobile_robotics',
             executable='go_to_goal_controller',
             name='go_to_goal_controller',
             output='screen',

@@ -23,7 +23,8 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "differential_drive_controller = mobile_robotics.mobile_robotics_node:main",
+            "odometry_speed_estimator = mobile_robotics.odometry_speed_estimator:main",
+            "go_to_goal_controller = mobile_robotics.go_to_goal_controller:main",
         ],
     },
 )

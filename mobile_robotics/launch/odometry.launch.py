@@ -15,12 +15,5 @@ def generate_launch_description():
             name='odometry_speed_estimator',
             output='screen',
             parameters=[params_file],
-        ),
-        Node(
-            package='mobile_robotics',
-            executable='go_to_goal_controller',
-            name='go_to_goal_controller',
-            output='screen',
-            parameters=[params_file],
         )
     ])
