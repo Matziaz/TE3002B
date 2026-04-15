@@ -64,7 +64,7 @@ class SpeedEstimatorNode(Node):
         self.timer = self.create_timer(1.0 / self.publish_rate, self.timer_callback)
         self.diag_timer = self.create_timer(1.0, self.diagnostic_callback)
 
-        self.get_logger().info('Speed estimator node started (Activity 1).')
+        self.get_logger().info('Speed estimator node started.')
         self.get_logger().info(
             f'Subscribing: R={self.right_wheel_topic}, L={self.left_wheel_topic} | '
             f'Publishing: v={self.linear_speed_topic}, w={self.angular_speed_topic}, twist={self.estimated_twist_topic}'

@@ -136,7 +136,7 @@ class GoToGoalNode(Node):
 
         self.timer = self.create_timer(1.0 / self.control_rate, self.control_loop)
 
-        self.get_logger().info('Go-to-goal node started (Activity 3).')
+        self.get_logger().info('Go-to-goal node started.')
         self.get_logger().info(f'Goal=({self.goal_x:.3f}, {self.goal_y:.3f}) | topic_mode={self.listen_goal_topic}')
 
     def normalize_angle(self, angle):

@@ -63,7 +63,7 @@ class OdometryNode(Node):
 
         self.timer = self.create_timer(1.0 / self.publish_rate, self.update_and_publish)
 
-        self.get_logger().info('Odometry node started (Activity 2).')
+        self.get_logger().info('Odometry node started.')
         self.get_logger().info(
             f'Subscribing: R={self.right_wheel_topic}, L={self.left_wheel_topic} | Publishing: {self.odom_topic}'
         )
