@@ -34,7 +34,7 @@ go_to_goal_controller:
     control_loop_rate: 20.0
     goal_x: 1.0
     goal_y: 0.0
-    use_dynamic_goals: false
+    use_dynamic_goals: true
     dynamic_goal_topic: '/goal_pose'
     proportional_velocity_gain: 0.8
     proportional_angular_gain: 2.5

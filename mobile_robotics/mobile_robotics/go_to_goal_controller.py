@@ -59,6 +59,7 @@ class GoToGoalController(Node):
         self.robot_heading = 0.0
 
         self.goal_reached = False
+        self.goal_reached_printed = False
 
         self.velocity_command_pub = self.create_publisher(Twist, self.velocity_command_topic, 10)
         self.create_subscription(Odometry, self.odometry_topic, self.on_odometry_update, 10)
@@ -92,10 +93,19 @@ class GoToGoalController(Node):
         distance_to_goal = math.sqrt(dx * dx + dy * dy)
 
         if distance_to_goal < self.distance_tolerance:
-            self.goal_reached = True
-            linear_command = 0.0
-            angular_command = 0.0
-            self.get_logger().info(f'GOAL REACHED! Robot at ({self.robot_x:.3f}, {self.robot_y:.3f}), Goal: ({self.goal_x:.3f}, {self.goal_y:.3f})')
+            if not self.goal_reached_printed:
+                self.goal_reached = True
+                self.goal_reached_printed = True
+                linear_command = 0.0
+                angular_command = 0.0
+                self.get_logger().info(f'GOAL REACHED! Error x={dx:.6f}, Error y={dy:.6f}, Distance={distance_to_goal:.6f}')
+                cmd_msg = Twist()
+                cmd_msg.linear.x = 0.0
+                cmd_msg.angular.z = 0.0
+                self.velocity_command_pub.publish(cmd_msg)
+                self.get_logger().info('Shutting down node...')
+                rclpy.shutdown()
+            return
         else:
             self.goal_reached = False
             desired_heading = math.atan2(dy, dx)
