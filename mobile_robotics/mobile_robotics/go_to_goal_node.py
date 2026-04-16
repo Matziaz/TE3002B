@@ -33,7 +33,7 @@ class GoToGoalNode(Node):
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('goal_topic', '/goal_pose')
-        self.declare_parameter('control_rate', 20.0)
+        self.declare_parameter('control_rate', 30.0)
 
         # ========== GOAL POSITION ==========
         self.declare_parameter('x_goal', 1.0)
@@ -47,12 +47,12 @@ class GoToGoalNode(Node):
 
         # ========== VELOCITY LIMITS ==========
         self.declare_parameter('v_max', 0.35)
-        self.declare_parameter('omega_max', 1.2)
-        self.declare_parameter('v_min', 0.0)
-        self.declare_parameter('omega_min', 0.0)
+        self.declare_parameter('omega_max', 1.5)
+        self.declare_parameter('v_min', 0.01)
+        self.declare_parameter('omega_min', 0.05)
 
         # ========== CONTROLLER GAINS ==========
-        self.declare_parameter('k_v', 0.8)       # Linear gain
+        self.declare_parameter('k_v', 1.0)       # Linear gain
         self.declare_parameter('k_omega', 2.5)   # Angular gain
 
         # ========== SPECIAL BEHAVIOR ==========

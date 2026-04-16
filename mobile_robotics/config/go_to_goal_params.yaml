@@ -6,7 +6,7 @@ go_to_goal_node:
     cmd_vel_topic: "/cmd_vel"           # Output: velocity commands (v, ω)
     odom_topic: "/odom"                 # Input: robot pose (x, y, θ)
     goal_topic: "/goal_pose"            # Input: goal position (x_G, y_G)
-    control_rate: 20.0                  # Control loop frequency (Hz)
+    control_rate: 30.0                  # Control loop frequency (Hz)
 
     # ========== GOAL POSITION ==========
     x_goal: 1.0                         # Target x position (meters)
@@ -14,21 +14,21 @@ go_to_goal_node:
     listen_goal_topic: true             # If true: listen to /goal_pose; if false: use x_goal/y_goal params
 
     # ========== TOLERANCES (e_d and e_θ) ==========
-    e_d_tolerance: 0.05                 # Distance error threshold: e_d < this → goal reached (meters)
-    e_theta_tolerance: 0.05             # Angular error threshold: e_θ < this → heading correct (radians)
-    settle_time: 0.5                    # Time (seconds) to maintain tolerance before marking goal complete
+    e_d_tolerance: 0.025                # Distance error threshold: e_d < this → goal reached (meters)
+    e_theta_tolerance: 0.03             # Angular error threshold: e_θ < this → heading correct (radians)
+    settle_time: 1.0                    # Time (seconds) to maintain tolerance before marking goal complete
 
     # ========== VELOCITY LIMITS ==========
     v_max: 0.35                         # Maximum linear velocity (m/s) - v_max > 0
-    omega_max: 1.2                      # Maximum angular velocity (rad/s) - ω_max > 0
-    v_min: 0.03                         # Minimum linear velocity (m/s) - prevents stalling
+    omega_max: 1.5                      # Maximum angular velocity (rad/s) - ω_max > 0
+    v_min: 0.01                         # Minimum linear velocity (m/s) - prevents stalling
     omega_min: 0.05                     # Minimum angular velocity (rad/s) - prevents stalling
 
     # ========== CONTROLLER GAINS (proportional control) ==========
     # v = k_v * e_d
     # ω = k_ω * e_θ
-    k_v: 0.8                            # Linear gain: higher = faster approach to goal
+    k_v: 1.0                            # Linear gain: higher = faster approach to goal
     k_omega: 2.5                        # Angular gain: higher = faster heading correction
     
     # Special Behavior
-    turn_in_place_threshold: 0.8        # If |e_θ| > this (radians): only rotate (v=0), don't move forward
+    turn_in_place_threshold: 0.5        # If |e_θ| > this (radians): only rotate (v=0), don't move forward
