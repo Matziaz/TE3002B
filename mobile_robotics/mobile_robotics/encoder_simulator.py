@@ -45,6 +45,7 @@ class EncoderSimulator(Node):
     def on_velocity_command(self, msg):
         self.linear_velocity = float(msg.linear.x)
         self.angular_velocity = float(msg.angular.z)
+        self.get_logger().debug(f'Velocity command received: v={self.linear_velocity:.3f}, w={self.angular_velocity:.3f}')
 
     def publish_encoder_data(self):
         self.right_wheel_velocity = (self.linear_velocity + 0.5 * self.angular_velocity * self.wheel_base) / self.wheel_radius
@@ -57,6 +58,8 @@ class EncoderSimulator(Node):
         left_msg = Float32()
         left_msg.data = float(self.left_wheel_velocity)
         self.left_encoder_pub.publish(left_msg)
+
+        self.get_logger().debug(f'Encoders published: w_R={self.right_wheel_velocity:.4f}, w_L={self.left_wheel_velocity:.4f}')
 
 
 def main(args=None):

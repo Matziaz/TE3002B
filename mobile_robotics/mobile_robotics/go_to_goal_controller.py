@@ -95,6 +95,7 @@ class GoToGoalController(Node):
             self.goal_reached = True
             linear_command = 0.0
             angular_command = 0.0
+            self.get_logger().info(f'GOAL REACHED! Robot at ({self.robot_x:.3f}, {self.robot_y:.3f}), Goal: ({self.goal_x:.3f}, {self.goal_y:.3f})')
         else:
             self.goal_reached = False
             desired_heading = math.atan2(dy, dx)
@@ -105,6 +106,8 @@ class GoToGoalController(Node):
 
             linear_command = self.clamp(linear_command, -self.linear_limit, self.linear_limit)
             angular_command = self.clamp(angular_command, -self.angular_limit, self.angular_limit)
+
+            self.get_logger().info(f'Robot: ({self.robot_x:.3f}, {self.robot_y:.3f}) | Goal: ({self.goal_x:.3f}, {self.goal_y:.3f}) | Error: dx={dx:.3f}, dy={dy:.3f}, dist={distance_to_goal:.3f} | Cmd: v={linear_command:.3f}, w={angular_command:.3f}')
 
         cmd_msg = Twist()
         cmd_msg.linear.x = float(linear_command)

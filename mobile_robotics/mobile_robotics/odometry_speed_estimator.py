@@ -126,6 +126,8 @@ class OdometryAndSpeedEstimator(Node):
         self.robot_x += linear_velocity * math.cos(heading_prev) * dt
         self.robot_y += linear_velocity * math.sin(heading_prev) * dt
 
+        self.get_logger().debug(f'Odometry updated: x={self.robot_x:.4f}, y={self.robot_y:.4f}, theta={self.robot_heading:.4f}, v={linear_velocity:.4f}, w={angular_velocity:.4f}')
+
         odom_msg = Odometry()
         odom_msg.header.stamp = now.to_msg()
         odom_msg.header.frame_id = self.odom_frame
