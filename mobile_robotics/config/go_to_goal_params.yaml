@@ -11,7 +11,7 @@ go_to_goal_node:
     # ========== GOAL POSITION ==========
     x_goal: 1.0                         # Target x position (meters)
     y_goal: 0.0                         # Target y position (meters)
-    listen_goal_topic: false            # If true: listen to /goal_pose; if false: use x_goal/y_goal params
+    listen_goal_topic: true             # If true: listen to /goal_pose; if false: use x_goal/y_goal params
 
     # ========== TOLERANCES (e_d and e_θ) ==========
     e_d_tolerance: 0.05                 # Distance error threshold: e_d < this → goal reached (meters)
