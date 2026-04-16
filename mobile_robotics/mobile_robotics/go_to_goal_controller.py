@@ -86,6 +86,8 @@ class GoToGoalController(Node):
     def on_goal_update(self, msg):
         self.goal_x = float(msg.linear.x)
         self.goal_y = float(msg.linear.y)
+        self.goal_reached_printed = False
+        self.get_logger().info(f'New goal received: ({self.goal_x:.3f}, {self.goal_y:.3f})')
 
     def control_loop(self):
         dx = self.goal_x - self.robot_x
@@ -96,16 +98,11 @@ class GoToGoalController(Node):
             if not self.goal_reached_printed:
                 self.goal_reached = True
                 self.goal_reached_printed = True
-                linear_command = 0.0
-                angular_command = 0.0
                 self.get_logger().info(f'GOAL REACHED! Error x={dx:.6f}, Error y={dy:.6f}, Distance={distance_to_goal:.6f}')
-                cmd_msg = Twist()
-                cmd_msg.linear.x = 0.0
-                cmd_msg.angular.z = 0.0
-                self.velocity_command_pub.publish(cmd_msg)
-                self.get_logger().info('Shutting down node...')
-                rclpy.shutdown()
-            return
+                self.get_logger().info('Waiting for new goal command...')
+            
+            linear_command = 0.0
+            angular_command = 0.0
         else:
             self.goal_reached = False
             desired_heading = math.atan2(dy, dx)
