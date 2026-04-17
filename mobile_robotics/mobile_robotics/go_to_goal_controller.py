@@ -4,7 +4,7 @@ import math
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry
 
 
@@ -65,7 +65,7 @@ class GoToGoalController(Node):
         self.create_subscription(Odometry, self.odometry_topic, self.on_odometry_update, 10)
 
         if self.use_dynamic_goals:
-            self.create_subscription(Twist, self.dynamic_goal_topic, self.on_goal_update, 10)
+            self.create_subscription(PoseStamped, self.dynamic_goal_topic, self.on_goal_update, 10)
 
         self.control_timer = self.create_timer(1.0 / self.control_rate, self.control_loop)
 
@@ -84,8 +84,8 @@ class GoToGoalController(Node):
         self.robot_heading = 2.0 * math.atan2(orientation.z, orientation.w)
 
     def on_goal_update(self, msg):
-        self.goal_x = float(msg.linear.x)
-        self.goal_y = float(msg.linear.y)
+        self.goal_x = float(msg.pose.position.x)
+        self.goal_y = float(msg.pose.position.y)
         self.goal_reached_printed = False
         self.get_logger().info(f'New goal received: ({self.goal_x:.3f}, {self.goal_y:.3f})')
 
