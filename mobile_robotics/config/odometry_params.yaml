@@ -1,6 +1,6 @@
 odometry_node:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
 
     # ========== ENCODER TOPICS ==========
     # Subscribes to angular velocities (ω_R, ω_L) in rad/s
@@ -10,8 +10,8 @@ odometry_node:
 
     # ========== ODOMETRY PARAMETERS ==========
     publish_rate: 50.0                   # Odometry update frequency (Hz)
-    r: 0.05                              # Wheel radius (meters)
-    b: 0.19                              # Wheel base / axle length (meters)
+    r: 0.0505                            # Wheel radius (meters)
+    b: 0.175                             # Wheel base / axle length (meters)
     encoders_are_angular_speed: true     # If true: encoders give ω; if false: give v directly
 
     # ========== INITIAL POSE ==========

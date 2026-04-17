@@ -1,6 +1,6 @@
 path_generator_node:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
 
     # ========== TOPIC CONFIGURATION ==========
     goal_topic: "/goal_pose"            # Output: goal positions to go_to_goal_node

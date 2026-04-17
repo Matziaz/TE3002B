@@ -1,6 +1,6 @@
 go_to_goal_node:
   ros__parameters:
-    use_sim_time: true
+    use_sim_time: false
 
     # ========== TOPIC CONFIGURATION ==========
     cmd_vel_topic: "/cmd_vel"           # Output: velocity commands (v, ω)
@@ -19,8 +19,8 @@ go_to_goal_node:
     settle_time: 1.0                    # Time (seconds) to maintain tolerance before marking goal complete
 
     # ========== VELOCITY LIMITS ==========
-    v_max: 0.35                         # Maximum linear velocity (m/s) - v_max > 0
-    omega_max: 1.5                      # Maximum angular velocity (rad/s) - ω_max > 0
+    v_max: 0.25                         # Maximum linear velocity (m/s) - v_max > 0
+    omega_max: 0.80                     # Maximum angular velocity (rad/s) - ω_max > 0
     v_min: 0.01                         # Minimum linear velocity (m/s) - prevents stalling
     omega_min: 0.05                     # Minimum angular velocity (rad/s) - prevents stalling
 
