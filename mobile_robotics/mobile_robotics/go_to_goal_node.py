@@ -3,17 +3,21 @@
 Go-to-Goal Navigation Node
 ===========================
 
-Control a differential drive robot to reach a target position using proportional control.
+Control a differential drive robot to reach a target position using PI control.
 
 Mathematical Model:
-    Error calculations (from homework):
+    Error calculations:
         e_d = √((x_G - x)² + (y_G - y)²)          # Distance error
         θ_G = atan2(y_G - y, x_G - x)              # Desired heading
         e_th = θ_G - θ_R                             # Heading error (normalized)
     
-    Proportional controller:
-        v = k_v * e_d                              # Linear velocity command
-        w = k_ω * e_th                             # Angular velocity command
+    Proportional-Integral (PI) controller:
+        v = k_v * e_d + k_i_v * ∫e_d dt          # Linear velocity command
+        w = k_ω * e_th + k_i_ω * ∫e_th dt         # Angular velocity command
+        
+    Proportional (P) controller (if k_i_v=0, k_i_ω=0):
+        v = k_v * e_d
+        w = k_ω * e_th
 """
 
 import math
@@ -52,8 +56,12 @@ class GoToGoalNode(Node):
         self.declare_parameter('omega_min', 0.05)
 
         # ========== CONTROLLER GAINS ==========
-        self.declare_parameter('k_v', 1.0)       # Linear gain
-        self.declare_parameter('k_omega', 2.5)   # Angular gain
+        self.declare_parameter('k_v', 1.0)       # Proportional linear gain
+        self.declare_parameter('k_omega', 2.5)   # Proportional angular gain
+        self.declare_parameter('k_i_v', 0.0)     # Integral linear gain (set > 0 for PI)
+        self.declare_parameter('k_i_omega', 0.0) # Integral angular gain (set > 0 for PI)
+        self.declare_parameter('i_max_v', 0.1)   # Max accumulator for distance integral
+        self.declare_parameter('i_max_omega', 0.5) # Max accumulator for heading integral
 
         # ========== SPECIAL BEHAVIOR ==========
         self.declare_parameter('turn_in_place_threshold', 0.8)
@@ -79,6 +87,10 @@ class GoToGoalNode(Node):
 
         self.k_v = float(self.get_parameter('k_v').value)
         self.k_omega = float(self.get_parameter('k_omega').value)
+        self.k_i_v = float(self.get_parameter('k_i_v').value)
+        self.k_i_omega = float(self.get_parameter('k_i_omega').value)
+        self.i_max_v = float(self.get_parameter('i_max_v').value)
+        self.i_max_omega = float(self.get_parameter('i_max_omega').value)
 
         self.turn_in_place_threshold = float(self.get_parameter('turn_in_place_threshold').value)
 
@@ -102,6 +114,10 @@ class GoToGoalNode(Node):
         self.goal_reached = False
         self.goal_tolerance_since = None
 
+        # Integral error accumulators (for PI control)
+        self.e_d_integral = 0.0
+        self.e_th_integral = 0.0
+
         self.last_control_stamp = self.get_clock().now()
 
         # ========== ROS SETUP ==========
@@ -115,7 +131,10 @@ class GoToGoalNode(Node):
 
         self.get_logger().info('Go-to-goal node started.')
         self.get_logger().info(f'Goal = ({self.x_goal:.3f}, {self.y_goal:.3f}) | mode={self.listen_goal_topic}')
-        self.get_logger().info(f'Gains: k_v={self.k_v}, k_ω={self.k_omega}')
+        controller_type = 'PI' if (self.k_i_v > 0 or self.k_i_omega > 0) else 'P'
+        self.get_logger().info(f'Control: {controller_type} | k_v={self.k_v}, k_ω={self.k_omega}')
+        if self.k_i_v > 0 or self.k_i_omega > 0:
+            self.get_logger().info(f'Integral: k_i_v={self.k_i_v}, k_i_ω={self.k_i_omega}')
 
     def normalize_angle(self, angle):
         """
@@ -145,6 +164,9 @@ class GoToGoalNode(Node):
         self.y_goal = float(msg.pose.position.y)
         self.goal_reached = False
         self.goal_tolerance_since = None
+        # Reset integral accumulators on new goal
+        self.e_d_integral = 0.0
+        self.e_th_integral = 0.0
         self.get_logger().info(f'New goal: ({self.x_goal:.3f}, {self.y_goal:.3f})')
 
     def odom_callback(self, msg):
@@ -206,12 +228,22 @@ class GoToGoalNode(Node):
         else:
             self.goal_tolerance_since = None
 
-        # ========== CONTROL: PROPORTIONAL CONTROLLER ==========
-        # v = k_v * e_d
+        # ========== CONTROL: PI CONTROLLER ==========
+        # Proportional terms
         v_cmd = self.k_v * e_d
-
-        # w = k_w * e_th
         w_cmd = self.k_omega * e_th
+
+        # Integral terms (accumulate errors)
+        self.e_d_integral += e_d * dt
+        self.e_th_integral += e_th * dt
+
+        # Anti-windup: clamp accumulators
+        self.e_d_integral = self.clamp(self.e_d_integral, -self.i_max_v, self.i_max_v)
+        self.e_th_integral = self.clamp(self.e_th_integral, -self.i_max_omega, self.i_max_omega)
+
+        # Add integral contributions
+        v_cmd += self.k_i_v * self.e_d_integral
+        w_cmd += self.k_i_omega * self.e_th_integral
 
         # ========== SPECIAL BEHAVIOR: TURN-IN-PLACE ==========
         # If heading error is large, only rotate (don't move forward)

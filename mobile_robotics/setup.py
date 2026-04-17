@@ -26,6 +26,7 @@ setup(
             "speed_estimator_node = mobile_robotics.speed_estimator_node:main",
             "odometry_node = mobile_robotics.odometry_node:main",
             "go_to_goal_node = mobile_robotics.go_to_goal_node:main",
+            "path_generator_node = mobile_robotics.path_generator_node:main",
         ],
     },
 )

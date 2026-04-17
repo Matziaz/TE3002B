@@ -1,0 +1,32 @@
+path_generator_node:
+  ros__parameters:
+    use_sim_time: true
+
+    # ========== TOPIC CONFIGURATION ==========
+    goal_topic: "/goal_pose"            # Output: goal positions to go_to_goal_node
+    odom_topic: "/odom"                 # Input: robot pose
+    publish_rate: 10.0                  # Publishing frequency (Hz)
+
+    # ========== PATH PARAMETERS ==========
+    path_type: "square"                 # 'square' for 2m×2m square, 'custom' for waypoints array
+    square_size: 2.0                    # Size of square (meters)
+    
+    # Custom waypoints (used if path_type != 'square')
+    waypoints:
+      - [2.0, 0.0]  # Waypoint 1: (2m, 0m)
+      - [2.0, 2.0]  # Waypoint 2: (2m, 2m)
+      - [0.0, 2.0]  # Waypoint 3: (0m, 2m)
+      - [0.0, 0.0]  # Waypoint 4: (0m, 0m) - return to origin
+
+    # ========== GOAL DETECTION ==========
+    goal_reached_distance: 0.05         # Distance tolerance (meters)
+    goal_reached_heading: 0.05          # Heading tolerance (radians)
+    settle_time: 0.5                    # Time to confirm goal is stable (seconds)
+    reachability_check: true            # Validate waypoint reachability
+
+    # ========== CONTROLLER GAIN ADAPTATION (Part 2) ==========
+    # Dynamic gain adjustment based on distance to goal
+    adaptive_gains: false               # Enable/disable gain adaptation
+    k_v_near: 0.5                       # Linear gain when near goal
+    k_v_far: 1.0                        # Linear gain when far from goal
+    distance_threshold: 0.5             # Distance to transition gains (meters)

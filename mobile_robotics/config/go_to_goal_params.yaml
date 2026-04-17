@@ -9,8 +9,8 @@ go_to_goal_node:
     control_rate: 30.0                  # Control loop frequency (Hz)
 
     # ========== GOAL POSITION ==========
-    x_goal: 1.0                         # Target x position (meters)
-    y_goal: 0.0                         # Target y position (meters)
+    x_goal: 1.0                         # Target x position (meters) - IGNORED if listen_goal_topic=true
+    y_goal: 0.0                         # Target y position (meters) - IGNORED if listen_goal_topic=true
     listen_goal_topic: true             # If true: listen to /goal_pose; if false: use x_goal/y_goal params
 
     # ========== TOLERANCES (e_d and e_θ) ==========
@@ -24,11 +24,18 @@ go_to_goal_node:
     v_min: 0.01                         # Minimum linear velocity (m/s) - prevents stalling
     omega_min: 0.05                     # Minimum angular velocity (rad/s) - prevents stalling
 
-    # ========== CONTROLLER GAINS (proportional control) ==========
-    # v = k_v * e_d
-    # ω = k_ω * e_θ
-    k_v: 1.0                            # Linear gain: higher = faster approach to goal
-    k_omega: 2.5                        # Angular gain: higher = faster heading correction
+    # ========== CONTROLLER GAINS (Proportional-Integral) ==========
+    # Set k_i_v=0 and k_i_omega=0 for P-only control
+    # Set k_i_v>0 or k_i_omega>0 for PI control
+    #
+    # v = k_v * e_d + k_i_v * ∫e_d dt
+    # ω = k_ω * e_th + k_i_ω * ∫e_th dt
+    k_v: 1.0                            # Proportional linear gain
+    k_omega: 2.5                        # Proportional angular gain
+    k_i_v: 0.0                          # Integral linear gain (0 = P only)
+    k_i_omega: 0.0                      # Integral angular gain (0 = P only)
+    i_max_v: 0.1                        # Max accumulator for ∫e_d (anti-windup)
+    i_max_omega: 0.5                    # Max accumulator for ∫e_th (anti-windup)
     
     # Special Behavior
     turn_in_place_threshold: 0.5        # If |e_θ| > this (radians): only rotate (v=0), don't move forward
