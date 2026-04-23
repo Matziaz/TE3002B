@@ -1,0 +1,68 @@
+# Lab Testing Profile - Safe, Slow, Stable
+# Copy to config/*.yaml files to use this profile
+
+# === odometry_params.yaml ===
+odometry_node:
+  ros__parameters:
+    wheel_radius: 0.05
+    axle_length: 0.167
+    update_rate: 0.05        # Slower: 20 Hz for stability
+    pose_topic: 'pose'
+    left_velocity_topic: 'VelocityEncL'
+    right_velocity_topic: 'VelocityEncR'
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_theta: 0.0
+
+# === go_to_goal_params.yaml ===
+go_to_goal_node:
+  ros__parameters:
+    goal_list: [[-1.2, -1.2]]
+    control_loop_rate: 0.05
+    kv: 0.2                  # Low gain: slower response
+    kw: 0.2                  # Low gain: slower rotation
+    v_max: 0.15              # Low speed: safe navigation
+    w_max: 0.15              # Low rotation speed
+    dist_threshold: 0.05     # Strict: must reach goal closely
+    angle_trigger: 0.5       # Looser: allow forward motion earlier
+    pose_topic: 'pose'
+    cmd_vel_topic: 'cmd_vel'
+    velocity_scale_topic: 'velocity_scale'
+
+# === color_detector_params.yaml ===
+color_detector_node:
+  ros__parameters:
+    red_lower_h: 0
+    red_upper_h: 10
+    red_lower_h2: 170
+    red_upper_h2: 180
+    red_lower_s: 50
+    red_upper_s: 255
+    red_lower_v: 50
+    red_upper_v: 255
+    yellow_lower_h: 20
+    yellow_upper_h: 40
+    yellow_lower_s: 50
+    yellow_upper_s: 255
+    yellow_lower_v: 50
+    yellow_upper_v: 255
+    green_lower_h: 40
+    green_upper_h: 80
+    green_lower_s: 50
+    green_upper_s: 255
+    green_lower_v: 50
+    green_upper_v: 255
+    dominance_ratio: 1.25
+    min_blob_size: 100       # Standard noise rejection
+    morphology_kernel_size: 5
+    history_length: 5
+    camera_topic: '/image_raw'
+
+# === traffic_light_params.yaml ===
+traffic_light_controller:
+  ros__parameters:
+        signal_loss_timeout: 3.0     # Longer: more stable before timeout
+    slow_velocity_factor: 0.2    # Very slow on yellow
+    confidence_threshold: 0.4
+    transition_frames: 5         # More frames: smoother transitions
+    enable_logging: true

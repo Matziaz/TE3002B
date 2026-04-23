@@ -1,0 +1,68 @@
+# Fast Navigation Profile - Quick Response
+# Copy to config/*.yaml files to use this profile
+
+# === odometry_params.yaml ===
+odometry_node:
+  ros__parameters:
+    wheel_radius: 0.05
+    axle_length: 0.167
+    update_rate: 0.02        # Faster: 50 Hz for responsiveness
+    pose_topic: 'pose'
+    left_velocity_topic: 'VelocityEncL'
+    right_velocity_topic: 'VelocityEncR'
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_theta: 0.0
+
+# === go_to_goal_params.yaml ===
+go_to_goal_node:
+  ros__parameters:
+    goal_list: [[-1.2, -1.2]]
+    control_loop_rate: 0.05
+    kv: 0.6                  # High gain: faster response
+    kw: 0.6                  # High gain: more aggressive rotation
+    v_max: 0.4               # Higher speed
+    w_max: 0.4               # Faster rotation
+    dist_threshold: 0.1      # Loose: stops earlier
+    angle_trigger: 0.2       # Tighter: start moving forward sooner
+    pose_topic: 'pose'
+    cmd_vel_topic: 'cmd_vel'
+    velocity_scale_topic: 'velocity_scale'
+
+# === color_detector_params.yaml ===
+color_detector_node:
+  ros__parameters:
+    red_lower_h: 0
+    red_upper_h: 10
+    red_lower_h2: 170
+    red_upper_h2: 180
+    red_lower_s: 50
+    red_upper_s: 255
+    red_lower_v: 50
+    red_upper_v: 255
+    yellow_lower_h: 20
+    yellow_upper_h: 40
+    yellow_lower_s: 50
+    yellow_upper_s: 255
+    yellow_lower_v: 50
+    yellow_upper_v: 255
+    green_lower_h: 40
+    green_upper_h: 80
+    green_lower_s: 50
+    green_upper_s: 255
+    green_lower_v: 50
+    green_upper_v: 255
+    dominance_ratio: 1.25
+    min_blob_size: 80        # Less filtering: detect smaller lights
+    morphology_kernel_size: 3  # Less smoothing
+    history_length: 3        # Shorter window: faster response
+    camera_topic: '/image_raw'
+
+# === traffic_light_params.yaml ===
+traffic_light_controller:
+  ros__parameters:
+        signal_loss_timeout: 1.0    # Short: quick failure detection
+    slow_velocity_factor: 0.5   # Still move somewhat on yellow
+    confidence_threshold: 0.3   # Lower threshold for responsiveness
+    transition_frames: 2        # Fewer frames: immediate response
+    enable_logging: true

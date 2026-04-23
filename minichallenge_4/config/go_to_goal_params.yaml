@@ -1,0 +1,16 @@
+# Go-to-Goal Navigation Node Parameters
+# Point-to-point navigation controller with traffic light integration
+
+go_to_goal_node:
+  ros__parameters:
+    goal_list: [[-1.2, -1.2]]
+    control_loop_rate: 0.05
+    kv: 0.4
+    kw: 0.4
+    v_max: 0.3
+    w_max: 0.3
+    dist_threshold: 0.08
+    angle_trigger: 0.3
+    pose_topic: 'pose'
+    cmd_vel_topic: 'cmd_vel'
+    velocity_scale_topic: 'velocity_scale'

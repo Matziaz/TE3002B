@@ -1,0 +1,32 @@
+# Odometry Node Parameters
+# Differential drive kinematics model for pose estimation
+
+odometry_node:
+  ros__parameters:
+    # Wheel/Robot Parameters
+    wheel_radius: 0.05       # Wheel radius (meters)
+    axle_length: 0.167       # Distance between wheels / wheel separation (meters)
+                             # Note: Original L=0.167 showed drift to right
+                             # Can be adjusted if odometry drifts systematically
+
+    # Update Rate
+    update_rate: 0.02        # Timer period in seconds (50 Hz)
+                             # Inverse: 1/0.02 = 50 Hz update frequency
+
+    # Output Topics
+    pose_topic: 'pose'       # Publish pose estimates
+
+    # Input Topics (Velocity Commands)
+    left_velocity_topic: 'VelocityEncL'   # Left wheel angular velocity (rad/s)
+    right_velocity_topic: 'VelocityEncR'  # Right wheel angular velocity (rad/s)
+
+    # Initial Pose
+    initial_x: 0.0           # Initial x position (meters)
+    initial_y: 0.0           # Initial y position (meters)
+    initial_theta: 0.0       # Initial orientation (radians)
+
+    # Kinematic Model
+    # Forward kinematics: differential drive
+    # v = r * (wl + wr) / 2
+    # omega = r * (wr - wl) / L
+    # where: r = wheel radius, wl = left wheel velocity, wr = right wheel velocity, L = axle length

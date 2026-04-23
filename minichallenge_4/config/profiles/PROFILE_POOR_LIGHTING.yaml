@@ -1,0 +1,73 @@
+# Poor Lighting Profile - For challenging/dim conditions
+# Copy to config/*.yaml files when lighting is poor or inconsistent
+
+# === odometry_params.yaml ===
+odometry_node:
+  ros__parameters:
+    wheel_radius: 0.05
+    axle_length: 0.167
+    update_rate: 0.02
+    pose_topic: 'pose'
+    left_velocity_topic: 'VelocityEncL'
+    right_velocity_topic: 'VelocityEncR'
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_theta: 0.0
+
+# === go_to_goal_params.yaml ===
+go_to_goal_node:
+  ros__parameters:
+    goal_list: [[-1.2, -1.2]]
+    control_loop_rate: 0.05
+    kv: 0.3                  # Medium gain
+    kw: 0.3                  # Medium gain
+    v_max: 0.2               # Conservative speed
+    w_max: 0.2
+    dist_threshold: 0.08
+    angle_trigger: 0.4
+    pose_topic: 'pose'
+    cmd_vel_topic: 'cmd_vel'
+    velocity_scale_topic: 'velocity_scale'
+
+# === color_detector_params.yaml ===
+color_detector_node:
+  ros__parameters:
+    # ADJUSTED for poor lighting: Lower S,V thresholds
+    red_lower_h: 0
+    red_upper_h: 12          # Slightly broader hue tolerance
+    red_lower_h2: 168
+    red_upper_h2: 180
+    red_lower_s: 30         # LOWERED from 50 (accept darker reds)
+    red_upper_s: 255
+    red_lower_v: 30         # LOWERED from 50
+    red_upper_v: 255
+    
+    yellow_lower_h: 18       # Slightly broader
+    yellow_upper_h: 42
+    yellow_lower_s: 40       # LOWERED from 50
+    yellow_upper_s: 255
+    yellow_lower_v: 40       # LOWERED from 50
+    yellow_upper_v: 255
+    
+    green_lower_h: 38
+    green_upper_h: 82
+    green_lower_s: 40        # LOWERED from 50
+    green_upper_s: 255
+    green_lower_v: 40        # LOWERED from 50
+    green_upper_v: 255
+    
+    # INCREASED filtering for noise in poor lighting
+    dominance_ratio: 1.25
+    min_blob_size: 50        # LOWERED to detect faint lights
+    morphology_kernel_size: 7  # INCREASED smoothing
+    history_length: 10       # INCREASED window: more averaging
+    camera_topic: '/image_raw'
+
+# === traffic_light_params.yaml ===
+traffic_light_controller:
+  ros__parameters:
+        signal_loss_timeout: 2.5     # Slightly longer
+    slow_velocity_factor: 0.25
+    confidence_threshold: 0.3    # LOWERED from 0.4
+    transition_frames: 4         # More frames to confirm in noise
+    enable_logging: true

@@ -1,0 +1,12 @@
+Applied fixes in this package:
+- Unified Python package/module/resource name to minichallenge_4.
+- Fixed setup.py/setup.cfg entry points and installed profile YAML files.
+- Added launch argument: profile:=default|PROFILE_FAST|PROFILE_LAB_SAFE|PROFILE_POOR_LIGHTING|PROFILE_PRECISION.
+- Implemented red latch logic: once red is detected, the robot stays stopped until a valid green is detected.
+- Made traffic-light decisions confidence-aware.
+- Reworked color detector to use largest blob area and dominance ratio instead of raw pixel counts only.
+- Split red HSV thresholds into separate S and V parameters.
+- Added navigation metrics topics: /distance_error, /heading_error, /current_waypoint, /nav_status.
+- Added odometry metrics topics: /odom_linear_velocity, /odom_angular_velocity.
+- Normalized odometry heading angle.
+- Changed /velocity_scale to std_msgs/Float32 for cleaner interface.
