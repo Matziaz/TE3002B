@@ -207,14 +207,66 @@ class ColorDetector(Node):
     def _create_debug_image(self, image, red_mask, yellow_mask, green_mask, detected_color,
                             red_area, yellow_area, green_area):
         debug = image.copy()
+        h, w = debug.shape[:2]
+        
+        # Overlay de masks
         mask_debug = np.zeros_like(debug)
-        mask_debug[:, :, 2] = red_mask
-        mask_debug[:, :, 1] = cv2.bitwise_or(yellow_mask, green_mask)
+        mask_debug[:, :, 2] = red_mask        # Red channel
+        mask_debug[:, :, 1] = cv2.bitwise_or(yellow_mask, green_mask)  # Green channel (amarillo + verde)
         overlay = cv2.addWeighted(debug, 0.7, mask_debug, 0.3, 0)
-        cv2.putText(overlay, f'Detected: {detected_color.upper()}', (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        
+        # Color detectado (BGR format para OpenCV)
+        color_map = {
+            'red': (0, 0, 255),      # BGR: Rojo
+            'yellow': (0, 255, 255),  # BGR: Amarillo
+            'green': (0, 255, 0),     # BGR: Verde
+            'unknown': (128, 128, 128) # BGR: Gris
+        }
+        color_bgr = color_map.get(detected_color, (128, 128, 128))
+        
+        # CAJA GRANDE del color detectado (lado derecho)
+        box_width = 80
+        box_left = w - box_width
+        cv2.rectangle(overlay, (box_left, 0), (w, h), color_bgr, -1)  # Relleno
+        cv2.rectangle(overlay, (box_left, 0), (w, h), (255, 255, 255), 3)  # Borde blanco
+        
+        # Texto del color detectado en grande
+        font = cv2.FONT_HERSHEY_BOLD
+        text = detected_color.upper()
+        font_scale = 1.5
+        thickness = 3
+        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        text_x = box_left + (box_width - text_size[0]) // 2
+        text_y = h // 2 + text_size[1] // 2
+        cv2.putText(overlay, text, (text_x, text_y), font, font_scale, (255, 255, 255), thickness)
+        
+        # Información en esquina superior izquierda
         cv2.putText(overlay, f'Areas R/Y/G: {red_area:.0f}/{yellow_area:.0f}/{green_area:.0f}',
-                    (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        
+        # Barras de confianza (si total_area > 0)
+        total_area = red_area + yellow_area + green_area
+        if total_area > 0:
+            red_conf = red_area / total_area
+            yellow_conf = yellow_area / total_area
+            green_conf = green_area / total_area
+            
+            bar_y = 70
+            bar_height = 20
+            bar_width = 150
+            
+            # Barra Rojo
+            cv2.rectangle(overlay, (10, bar_y), (10 + int(bar_width * red_conf), bar_y + bar_height), (0, 0, 255), -1)
+            cv2.putText(overlay, f'R: {red_conf:.2f}', (10, bar_y + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            
+            # Barra Amarillo
+            cv2.rectangle(overlay, (10, bar_y + 50), (10 + int(bar_width * yellow_conf), bar_y + 50 + bar_height), (0, 255, 255), -1)
+            cv2.putText(overlay, f'Y: {yellow_conf:.2f}', (10, bar_y + 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            
+            # Barra Verde
+            cv2.rectangle(overlay, (10, bar_y + 100), (10 + int(bar_width * green_conf), bar_y + 100 + bar_height), (0, 255, 0), -1)
+            cv2.putText(overlay, f'G: {green_conf:.2f}', (10, bar_y + 135), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        
         return overlay
 
 
