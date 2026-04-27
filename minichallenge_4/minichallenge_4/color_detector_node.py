@@ -80,6 +80,7 @@ class ColorDetector(Node):
         self.bridge = cv_bridge.CvBridge()
         self.detection_history = []
         self.last_detected_color = 'unknown'
+        self.image_frame_count = 0  # DEBUG: contador de frames recibidos
         self.morphology_kernel = cv2.getStructuringElement(
             cv2.MORPH_ELLIPSE,
             (kernel_size, kernel_size),
@@ -100,6 +101,10 @@ class ColorDetector(Node):
 
     def image_callback(self, msg):
         try:
+            self.image_frame_count += 1
+            if self.image_frame_count % 10 == 0:  # Log cada 10 frames
+                self.get_logger().info(f'Frames recibidos: {self.image_frame_count}')
+            
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
@@ -112,6 +117,12 @@ class ColorDetector(Node):
             green_area = self._largest_blob_area(green_mask)
 
             detected_color, scores = self._determine_color(red_area, yellow_area, green_area)
+
+            # DEBUG LOG
+            self.get_logger().info(
+                f'Areas - Red: {red_area:.1f}, Yellow: {yellow_area:.1f}, Green: {green_area:.1f} | '
+                f'Detected: {detected_color} | Scores: R={scores["red"]:.3f}, Y={scores["yellow"]:.3f}, G={scores["green"]:.3f}'
+            )
 
             self.detection_history.append(detected_color)
             if len(self.detection_history) > self.history_length:
