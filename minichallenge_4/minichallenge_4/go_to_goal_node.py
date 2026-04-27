@@ -11,7 +11,8 @@ class Controller(Node):
     def __init__(self):
         super().__init__('go_to_goal_node')
 
-        self.declare_parameter('goal_list', [[-1.2, -1.2]])
+        self.declare_parameter('goal_x_list', [-1.2])
+        self.declare_parameter('goal_y_list', [-1.2])
         self.declare_parameter('control_loop_rate', 0.05)
         self.declare_parameter('kv', 0.4)
         self.declare_parameter('kw', 0.4)
@@ -23,8 +24,9 @@ class Controller(Node):
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
 
-        goal_list_raw = self.get_parameter('goal_list').value
-        self.goal_list = [tuple(goal) for goal in goal_list_raw]
+        goal_x_list = self.get_parameter('goal_x_list').value
+        goal_y_list = self.get_parameter('goal_y_list').value
+        self.goal_list = list(zip(goal_x_list, goal_y_list))
         control_loop_rate = float(self.get_parameter('control_loop_rate').value)
         self.kv = float(self.get_parameter('kv').value)
         self.kw = float(self.get_parameter('kw').value)

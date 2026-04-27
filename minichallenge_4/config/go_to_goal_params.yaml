@@ -3,7 +3,8 @@
 
 go_to_goal_node:
   ros__parameters:
-    goal_list: [[-1.2, -1.2]]
+    goal_x_list: [-1.2]
+    goal_y_list: [-1.2]
     control_loop_rate: 0.05
     kv: 0.4
     kw: 0.4
