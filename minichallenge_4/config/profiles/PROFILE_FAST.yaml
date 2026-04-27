@@ -56,7 +56,7 @@ color_detector_node:
     min_blob_size: 80        # Less filtering: detect smaller lights
     morphology_kernel_size: 3  # Less smoothing
     history_length: 3        # Shorter window: faster response
-    camera_topic: '/image_raw'
+    camera_topic: '/video_source/raw_mouse_left'
 
 # === traffic_light_params.yaml ===
 traffic_light_controller:

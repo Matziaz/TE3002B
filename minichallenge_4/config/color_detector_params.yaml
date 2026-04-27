@@ -34,4 +34,4 @@ color_detector_node:
     dominance_ratio: 1.25
     morphology_kernel_size: 5
     history_length: 5
-    camera_topic: '/image_raw'
+    camera_topic: '/video_source/raw_mouse_left'
