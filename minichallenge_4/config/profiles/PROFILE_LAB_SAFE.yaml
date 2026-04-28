@@ -56,7 +56,7 @@ color_detector_node:
     min_blob_size: 100       # Standard noise rejection
     morphology_kernel_size: 5
     history_length: 5
-    camera_topic: '/video_source/raw_mouse_left'
+    camera_topic: '/video_source/raw'
 
 # === traffic_light_params.yaml ===
 traffic_light_controller:
