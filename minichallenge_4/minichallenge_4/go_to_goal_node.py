@@ -39,6 +39,8 @@ class Controller(Node):
         velocity_scale_topic = self.get_parameter('velocity_scale_topic').value
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=5)
+        # Use a reliable QoS for cmd_vel to match typical robot drivers
+        cmd_qos = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, history=HistoryPolicy.KEEP_LAST, depth=5)
 
         self.current_goal = 0
         self.x = 0.0
@@ -46,7 +48,7 @@ class Controller(Node):
         self.theta = 0.0
         self.velocity_scale = 1.0
 
-        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, qos)
+        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, cmd_qos)
         self.distance_error_pub = self.create_publisher(Float32, 'distance_error', qos)
         self.heading_error_pub = self.create_publisher(Float32, 'heading_error', qos)
         self.current_waypoint_pub = self.create_publisher(Int32, 'current_waypoint', qos)

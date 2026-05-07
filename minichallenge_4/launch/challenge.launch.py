@@ -9,6 +9,7 @@ import os
 def _build_nodes(context):
     package_dir = get_package_share_directory('minichallenge_4')
     profile = LaunchConfiguration('profile').perform(context)
+    camera_topic = LaunchConfiguration('camera_topic').perform(context)
 
     odometry_config = os.path.join(package_dir, 'config', 'odometry_params.yaml')
     color_config = os.path.join(package_dir, 'config', 'color_detector_params.yaml')
@@ -41,7 +42,9 @@ def _build_nodes(context):
             executable='color_detector_node',
             name='color_detector_node',
             output='screen',
-            parameters=params['color']
+            parameters=params['color'] + [{
+                'camera_topic': camera_topic
+            }]
         ),
         Node(
             package='minichallenge_4',
@@ -67,6 +70,11 @@ def generate_launch_description():
             'profile',
             default_value='default',
             description='Config profile name: default, PROFILE_FAST, PROFILE_LAB_SAFE, PROFILE_POOR_LIGHTING, PROFILE_PRECISION'
+        ),
+        DeclareLaunchArgument(
+            'camera_topic',
+            default_value='/image_raw',
+            description='Camera topic to subscribe for the color detector'
         ),
         OpaqueFunction(function=_build_nodes)
     ])

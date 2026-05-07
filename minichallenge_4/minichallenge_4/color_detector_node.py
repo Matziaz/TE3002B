@@ -231,7 +231,9 @@ class ColorDetector(Node):
         cv2.rectangle(overlay, (box_left, 0), (w, h), (255, 255, 255), 3)  # Borde blanco
         
         # Texto del color detectado en grande
-        font = cv2.FONT_HERSHEY_BOLD
+        # OpenCV no define FONT_HERSHEY_BOLD; usar FONT_HERSHEY_DUPLEX
+        # o FONT_HERSHEY_SIMPLEX con mayor thickness para efecto "bold".
+        font = cv2.FONT_HERSHEY_DUPLEX
         text = detected_color.upper()
         font_scale = 1.5
         thickness = 3
