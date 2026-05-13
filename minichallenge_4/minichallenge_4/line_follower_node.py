@@ -89,13 +89,20 @@ class LineFollower(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=5
         )
+        # Use reliable QoS for `cmd_vel` so motor drivers that expect RELIABLE
+        # messages will receive commands.
+        qos_reliable = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=5
+        )
         
         # Create subscriptions.
         self.create_subscription(Image, self.image_topic, self.image_cb, qos)
         self.create_subscription(Float32, self.velocity_scale_topic, self.velocity_scale_cb, qos)
         
         # Create publishers.
-        self.cmd_pub = self.create_publisher(Twist, self.cmd_vel_topic, qos)
+        self.cmd_pub = self.create_publisher(Twist, self.cmd_vel_topic, qos_reliable)
         self.error_pub = self.create_publisher(Float32, 'lateral_error', qos)
         
         # Control loop timer.

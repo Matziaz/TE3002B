@@ -44,6 +44,9 @@ class Controller(Node):
         velocity_scale_topic = self.get_parameter('velocity_scale_topic').value
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=5)
+        # Use a reliable QoS for control commands so motor drivers/subscribers
+        # that require RELIABLE delivery can receive `cmd_vel` messages.
+        qos_reliable = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, history=HistoryPolicy.KEEP_LAST, depth=5)
 
         self.current_goal = 0
         self.x = 0.0
@@ -52,7 +55,7 @@ class Controller(Node):
         self.velocity_scale = 1.0
         self.mission_complete_reported = False
 
-        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, qos)
+        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, qos_reliable)
         self.distance_error_pub = self.create_publisher(Float32, 'distance_error', qos)
         self.heading_error_pub = self.create_publisher(Float32, 'heading_error', qos)
         self.current_waypoint_pub = self.create_publisher(Int32, 'current_waypoint', qos)
