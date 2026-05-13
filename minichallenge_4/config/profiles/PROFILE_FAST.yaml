@@ -1,4 +1,6 @@
 # Fast Navigation Profile - Quick Response
+# This profile file groups parameter presets for a specific testing condition.
+# It can be passed with the launch argument `profile:=PROFILE_NAME`.
 # Copy to config/*.yaml files to use this profile
 
 # === odometry_params.yaml ===

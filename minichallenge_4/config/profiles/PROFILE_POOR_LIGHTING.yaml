@@ -1,4 +1,6 @@
 # Poor Lighting Profile - For challenging/dim conditions
+# This profile file groups parameter presets for a specific testing condition.
+# It can be passed with the launch argument `profile:=PROFILE_NAME`.
 # Copy to config/*.yaml files when lighting is poor or inconsistent
 
 # === odometry_params.yaml ===

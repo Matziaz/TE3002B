@@ -1,9 +1,17 @@
+# Traffic Light Controller Parameters
+# Red is latched until a valid green detection is observed.
+
 traffic_light_controller:
   ros__parameters:
-    red_velocity_scale: 0.0
-    yellow_velocity_scale: 0.3
-    green_velocity_scale: 1.0
-    unknown_velocity_scale: 0.0
-    color_topic: 'detected_color'
-    velocity_scale_topic: 'velocity_scale'
-    state_history_length: 3
+    # If no valid color is detected for this many seconds, the signal is considered lost.
+    signal_loss_timeout: 2.0
+
+    # Speed multiplier used when yellow is detected.
+    slow_velocity_factor: 0.3
+
+    # Minimum confidence required before trusting a color decision.
+    confidence_threshold: 0.4
+
+    # Number of repeated updates needed before changing states.
+    transition_frames: 3
+    enable_logging: true

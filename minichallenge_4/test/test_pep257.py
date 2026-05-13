@@ -15,6 +15,7 @@
 from ament_pep257.main import main
 import pytest
 
+# This test checks Python docstring style using pep257.
 
 @pytest.mark.linter
 @pytest.mark.pep257

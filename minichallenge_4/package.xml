@@ -7,6 +7,7 @@
   <maintainer email="evansanpa@gmail.com">evan</maintainer>
   <license>TODO: License declaration</license>
 
+  <!-- Runtime dependencies needed by the ROS 2 Python nodes. -->
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
@@ -14,11 +15,13 @@
   <depend>cv_bridge</depend>
   <depend>opencv-python</depend>
 
+  <!-- Test/lint dependencies used by the generated ROS 2 test files. -->
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
+  <!-- Tell ament that this is a Python package. -->
   <export>
     <build_type>ament_python</build_type>
   </export>

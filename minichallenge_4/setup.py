@@ -1,13 +1,18 @@
+# setup.py tells ROS 2/ament how to install this Python package and which
+# console commands should be created for each node.
 from setuptools import find_packages, setup
 import os
 from glob import glob
 
+# Package name used for installation paths and console entry points.
 package_name = 'minichallenge_4'
 
 setup(
     name=package_name,
     version='0.0.2',
     packages=find_packages(exclude=['test']),
+    # Install package metadata, launch files, configuration files, and profiles
+    # into the package share directory so ros2 launch can find them.
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
@@ -22,6 +27,8 @@ setup(
     description='Minichallenge 4: Traffic light navigation with color detection and robust state handling.',
     license='MIT',
     tests_require=['pytest'],
+    # These console scripts allow each node to be launched by ROS 2 using the
+    # executable names shown below.
     entry_points={
         'console_scripts': [
             'odometry_node = minichallenge_4.odometry_node:main',

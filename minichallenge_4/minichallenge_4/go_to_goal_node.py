@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+# NumPy is used for trigonometric functions and angle normalization.
 import numpy as np
+# rclpy provides the ROS 2 Python node API.
 import rclpy
 from geometry_msgs.msg import Pose2D, Twist
 from rclpy.node import Node
@@ -11,8 +13,11 @@ class Controller(Node):
     def __init__(self):
         super().__init__('go_to_goal_node')
 
-        self.declare_parameter('goal_x_list', [-1.2])
-        self.declare_parameter('goal_y_list', [-1.2])
+        # Navigation parameters. The route is stored as two lists, one for x
+        # coordinates and one for y coordinates, so the path can be changed from
+        # the YAML file without editing this Python code.
+        self.declare_parameter('goal_x_list', [0.0, 0.0, 0.6, 0.6, 1.0])
+        self.declare_parameter('goal_y_list', [0.0, 0.5, 0.5, 1.0, 0.5])
         self.declare_parameter('control_loop_rate', 0.05)
         self.declare_parameter('kv', 0.4)
         self.declare_parameter('kw', 0.4)
@@ -39,16 +44,15 @@ class Controller(Node):
         velocity_scale_topic = self.get_parameter('velocity_scale_topic').value
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=5)
-        # Use a reliable QoS for cmd_vel to match typical robot drivers
-        cmd_qos = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, history=HistoryPolicy.KEEP_LAST, depth=5)
 
         self.current_goal = 0
         self.x = 0.0
         self.y = 0.0
         self.theta = 0.0
         self.velocity_scale = 1.0
+        self.mission_complete_reported = False
 
-        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, cmd_qos)
+        self.cmd_pub = self.create_publisher(Twist, cmd_vel_topic, qos)
         self.distance_error_pub = self.create_publisher(Float32, 'distance_error', qos)
         self.heading_error_pub = self.create_publisher(Float32, 'heading_error', qos)
         self.current_waypoint_pub = self.create_publisher(Int32, 'current_waypoint', qos)
@@ -78,6 +82,9 @@ class Controller(Node):
             status = String()
             status.data = 'mission_complete'
             self.nav_status_pub.publish(status)
+            if not self.mission_complete_reported:
+                self.get_logger().info('Route completed. Mission complete. Robot stopped.')
+                self.mission_complete_reported = True
             return
 
         gx, gy = self.goal_list[self.current_goal]
@@ -89,7 +96,10 @@ class Controller(Node):
         self._publish_metrics(ed, e_theta)
 
         if ed < self.dist_threshold:
-            self.get_logger().info(f'Waypoint {self.current_goal + 1} reached.')
+            self.get_logger().info(
+                f'Waypoint {self.current_goal + 1}/{len(self.goal_list)} reached: '
+                f'({gx:.2f}, {gy:.2f})'
+            )
             self.current_goal += 1
             return
 
@@ -128,6 +138,7 @@ class Controller(Node):
         self.cmd_pub.publish(msg)
 
 
+# ROS 2 entry point for this node.
 def main(args=None):
     rclpy.init(args=args)
     node = Controller()

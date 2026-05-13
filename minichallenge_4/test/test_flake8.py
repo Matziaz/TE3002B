@@ -15,6 +15,7 @@
 from ament_flake8.main import main_with_errors
 import pytest
 
+# This test checks Python style using flake8.
 
 @pytest.mark.flake8
 @pytest.mark.linter

@@ -1,4 +1,6 @@
 # Precision Profile - Maximum accuracy
+# This profile file groups parameter presets for a specific testing condition.
+# It can be passed with the launch argument `profile:=PROFILE_NAME`.
 # Use when high positioning accuracy is critical
 
 # === odometry_params.yaml ===

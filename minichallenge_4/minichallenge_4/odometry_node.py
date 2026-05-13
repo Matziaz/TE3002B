@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NumPy is used for trigonometry and angle normalization.
 import numpy as np
 import rclpy
 from geometry_msgs.msg import Pose2D
@@ -8,9 +9,13 @@ from std_msgs.msg import Float32
 
 
 class Odometry(Node):
+    # This node estimates the robot pose from the left and right wheel velocities
+    # using the differential-drive kinematic model.
     def __init__(self):
         super().__init__('odometry_node')
 
+        # Robot physical parameters and topic names. These are configurable so
+        # the model can be tuned without changing the source code.
         self.declare_parameter('wheel_radius', 0.05)
         self.declare_parameter('axle_length', 0.167)
         self.declare_parameter('update_rate', 0.02)
@@ -21,6 +26,7 @@ class Odometry(Node):
         self.declare_parameter('initial_y', 0.0)
         self.declare_parameter('initial_theta', 0.0)
 
+        # Read parameter values and initialize the pose estimate.
         self.r = float(self.get_parameter('wheel_radius').value)
         self.L = float(self.get_parameter('axle_length').value)
         self.dt = float(self.get_parameter('update_rate').value)
@@ -31,12 +37,14 @@ class Odometry(Node):
         self.y = float(self.get_parameter('initial_y').value)
         self.theta = float(self.get_parameter('initial_theta').value)
 
+        # BEST_EFFORT is enough for streaming wheel velocities and odometry data.
         qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
             depth=5,
         )
 
+        # Publish the estimated pose and extra velocity metrics for analysis.
         self.pub_pose = self.create_publisher(Pose2D, pose_topic, qos)
         self.pub_linear_velocity = self.create_publisher(Float32, 'odom_linear_velocity', qos)
         self.pub_angular_velocity = self.create_publisher(Float32, 'odom_angular_velocity', qos)
@@ -44,25 +52,34 @@ class Odometry(Node):
         self.create_subscription(Float32, right_vel_topic, self.wr_cb, qos)
         self.create_subscription(Float32, left_vel_topic, self.wl_cb, qos)
 
+        # Latest wheel angular velocities. They are updated by the callbacks and
+        # used by the timer to integrate the robot pose.
         self.wl = 0.0
         self.wr = 0.0
         self.create_timer(self.dt, self.main_timer_cb)
 
+    # Callback for the left wheel angular velocity.
     def wl_cb(self, msg):
         self.wl = float(msg.data)
 
+    # Callback for the right wheel angular velocity.
     def wr_cb(self, msg):
         self.wr = float(msg.data)
 
+    # Periodic odometry update. It converts wheel speeds into robot linear and
+    # angular velocity, integrates the pose, and publishes the result.
     def main_timer_cb(self):
+        # Differential-drive forward kinematics.
         v = self.r * (self.wr + self.wl) / 2.0
         omega = self.r * (self.wr - self.wl) / self.L
 
+        # Integrate the pose using the current heading and the configured time step.
         self.x += v * np.cos(self.theta) * self.dt
         self.y += v * np.sin(self.theta) * self.dt
         self.theta += omega * self.dt
         self.theta = float(np.arctan2(np.sin(self.theta), np.cos(self.theta)))
 
+        # Publish pose and velocity values so other nodes and plots can use them.
         pose_msg = Pose2D()
         pose_msg.x = float(self.x)
         pose_msg.y = float(self.y)
@@ -78,6 +95,7 @@ class Odometry(Node):
         self.pub_angular_velocity.publish(ang_msg)
 
 
+# ROS 2 entry point for the odometry node.
 def main(args=None):
     rclpy.init(args=args)
     node = Odometry()
