@@ -153,11 +153,13 @@ class LineFollower(Node):
         
         # Create mask based on line color.
         if self.line_color.lower() == 'white':
-            lower = np.array([self.h_lower, self.s_lower, self.v_lower], dtype=np.uint8)
-            upper = np.array([self.h_upper, self.s_upper, self.v_upper], dtype=np.uint8)
+            # White: low saturation, high value
+            lower = np.array([0, 0, 200], dtype=np.uint8)
+            upper = np.array([180, 30, 255], dtype=np.uint8)
         else:  # black
-            lower = np.array([self.h_lower, self.s_lower, self.v_lower], dtype=np.uint8)
-            upper = np.array([self.h_upper, self.s_upper, self.v_upper], dtype=np.uint8)
+            # Black: any hue, low saturation, low value
+            lower = np.array([0, 0, 0], dtype=np.uint8)
+            upper = np.array([180, 255, 100], dtype=np.uint8)
         
         mask = cv2.inRange(hsv_roi, lower, upper)
         
