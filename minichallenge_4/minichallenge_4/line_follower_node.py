@@ -16,7 +16,7 @@ class LineFollower(Node):
     """PD-based line follower node.
     
     Subscribes to:
-    - /video_source/raw (sensor_msgs/Image): Camera feed
+    - /camera (sensor_msgs/Image): Camera feed
     - velocity_scale (std_msgs/Float32): Traffic light velocity scale
     
     Publishes to:
@@ -28,7 +28,7 @@ class LineFollower(Node):
         super().__init__('line_follower_node')
 
         # Declare all configurable parameters.
-        self.declare_parameter('image_topic', '/video_source/raw')
+        self.declare_parameter('image_topic', '/camera')
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
         

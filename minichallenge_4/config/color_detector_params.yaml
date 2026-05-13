@@ -4,7 +4,7 @@
 
 color_detector_node:
   ros__parameters:
-    camera_topic: '/video_source/raw'
+    camera_topic: '/camera'
 
     # Resize inside the detector to reduce processing and streaming cost.
     # Set both to 0 if you want to keep the original camera resolution.

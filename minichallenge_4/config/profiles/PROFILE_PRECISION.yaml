@@ -62,7 +62,7 @@ color_detector_node:
     min_blob_size: 150       # INCREASED: only detect clear lights
     morphology_kernel_size: 5
     history_length: 8        # Longer averaging
-    camera_topic: '/video_source/raw'
+    camera_topic: '/camera'
 
 # === traffic_light_params.yaml ===
 traffic_light_controller:

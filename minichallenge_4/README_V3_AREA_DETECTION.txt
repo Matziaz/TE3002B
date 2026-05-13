@@ -16,7 +16,7 @@ Most important parameters to tune on the robot:
   dominance_ratio
 
 Recommended test commands:
-  ros2 topic hz /video_source/raw
+  ros2 topic hz /camera
   ros2 topic echo /detected_color
   ros2 topic echo /detected_color_area
   ros2 topic echo /traffic_state
