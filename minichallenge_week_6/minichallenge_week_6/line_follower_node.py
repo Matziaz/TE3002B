@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Line follower node using gradient-based detection and PI control.
-Alternative implementation: detects line by edge gradients (not HSV color).
+Line follower node using black line detection and PID control.
+Detects black lines by thresholding pixel intensity (dark pixels).
 """
 
 import cv2
@@ -17,10 +17,10 @@ from cv_bridge import CvBridge
 
 class LineFollower(Node):
     """
-    Gradient-based line follower with PI adaptive control.
+    Black line follower with PID control.
     
-    Detects line using edge gradients across multiple horizontal rows.
-    Uses confidence-weighted steering and adaptive speed.
+    Detects black lines by thresholding grayscale intensity.
+    Uses PID (Proportional-Integral-Derivative) control for smooth steering.
     
     Subscribes to:
     - /camera (sensor_msgs/Image): Camera feed
@@ -39,25 +39,26 @@ class LineFollower(Node):
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
         
-        # ===== Vision Parameters (Gradient-based Detection) =====
+        # ===== Vision Parameters (Black Line Detection) =====
         # ROI: analyze these rows for line detection
-        self.declare_parameter('roi_start_fraction', 0.5)   # Start at 50% of height
+        self.declare_parameter('roi_start_fraction', 0.4)   # Start at 40% of height
         self.declare_parameter('roi_end_fraction', 1.0)     # End at 100% (bottom)
         
         # Number of horizontal rows to sample for line detection
-        self.declare_parameter('detection_rows', 5)
+        self.declare_parameter('detection_rows', 6)
         
-        # Gradient threshold: pixels with |Sobel_X| above this are considered edges
-        self.declare_parameter('edge_threshold', 50)
+        # Black line intensity threshold: pixels below this are considered part of the line
+        self.declare_parameter('black_threshold', 100)      # Grayscale value (0-255)
         
         # Blur kernel size for noise reduction (must be odd)
         self.declare_parameter('blur_kernel', 5)
         
-        # ===== Control Parameters (PI Adaptive) =====
-        self.declare_parameter('kp', 0.6)           # Proportional gain for angular velocity
-        self.declare_parameter('ki', 0.05)          # Integral gain for angular velocity
-        self.declare_parameter('v_base', 0.2)       # Base linear velocity (m/s)
-        self.declare_parameter('w_max', 0.6)        # Max angular velocity (rad/s)
+        # ===== Control Parameters (PID) =====
+        self.declare_parameter('kp', 0.8)           # Proportional gain for angular velocity
+        self.declare_parameter('ki', 0.08)          # Integral gain - reduces steady-state error
+        self.declare_parameter('kd', 0.15)          # Derivative gain - improves stability
+        self.declare_parameter('v_base', 0.25)      # Base linear velocity (m/s)
+        self.declare_parameter('w_max', 0.8)        # Max angular velocity (rad/s)
         
         # Confidence scaling: reduce speed if line not clearly detected
         self.declare_parameter('confidence_threshold', 0.3)  # Min confidence to move
@@ -74,13 +75,14 @@ class LineFollower(Node):
         self.roi_start_fraction = float(self.get_parameter('roi_start_fraction').value)
         self.roi_end_fraction = float(self.get_parameter('roi_end_fraction').value)
         self.detection_rows = int(self.get_parameter('detection_rows').value)
-        self.edge_threshold = int(self.get_parameter('edge_threshold').value)
+        self.black_threshold = int(self.get_parameter('black_threshold').value)
         self.blur_kernel = int(self.get_parameter('blur_kernel').value)
         if self.blur_kernel % 2 == 0:
             self.blur_kernel += 1  # Ensure odd
         
         self.kp = float(self.get_parameter('kp').value)
         self.ki = float(self.get_parameter('ki').value)
+        self.kd = float(self.get_parameter('kd').value)
         self.v_base = float(self.get_parameter('v_base').value)
         self.w_max = float(self.get_parameter('w_max').value)
         self.confidence_threshold = float(self.get_parameter('confidence_threshold').value)
@@ -92,9 +94,11 @@ class LineFollower(Node):
         # ===== Internal State =====
         self.velocity_scale = 1.0
         self.current_error = 0.0
+        self.prev_error = 0.0      # For derivative term
         self.integral_error = 0.0
         self.line_confidence = 0.0
         self.cv_bridge = CvBridge()
+        self.dt = 0.033            # Assuming ~30Hz loop
         
         # QoS profile for best-effort topics (image is time-sensitive).
         qos = QoSProfile(
@@ -121,9 +125,9 @@ class LineFollower(Node):
         self.create_timer(control_loop_rate, self.control_loop)
         
         self.get_logger().info(
-            f'Line Follower (Gradient-based): roi=[{self.roi_start_fraction:.2f}, {self.roi_end_fraction:.2f}], '
-            f'rows={self.detection_rows}, edge_threshold={self.edge_threshold}, '
-            f'kp={self.kp}, ki={self.ki}, v_base={self.v_base}'
+            f'Line Follower (Black Line Detection with PID): roi=[{self.roi_start_fraction:.2f}, {self.roi_end_fraction:.2f}], '
+            f'rows={self.detection_rows}, black_threshold={self.black_threshold}, '
+            f'kp={self.kp}, ki={self.ki}, kd={self.kd}, v_base={self.v_base}'
         )
 
     def image_cb(self, msg: Image):
@@ -140,7 +144,7 @@ class LineFollower(Node):
 
     def process_image(self, cv_image):
         """
-        Detect line using horizontal gradient analysis across multiple rows.
+        Detect black line by thresholding grayscale intensity.
         Sets self.current_error and self.line_confidence.
         """
         height, width = cv_image.shape[:2]
@@ -151,10 +155,9 @@ class LineFollower(Node):
         # Apply Gaussian blur to reduce noise
         gray = cv2.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
         
-        # Compute horizontal gradients (Sobel X)
-        # Detects vertical edges (where line color changes from background)
-        sobel_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
-        sobel_x = np.abs(sobel_x)
+        # ===== Black Line Detection =====
+        # Create binary image: black pixels (low intensity) = 255, others = 0
+        _, binary = cv2.threshold(gray, self.black_threshold, 255, cv2.THRESH_BINARY_INV)
         
         # ===== Multi-row Detection =====
         # Sample multiple rows from ROI and vote for line position
@@ -169,28 +172,24 @@ class LineFollower(Node):
         valid_rows = 0
         
         for row_idx in row_indices:
-            row_gradients = sobel_x[row_idx, :]
+            row_pixels = binary[row_idx, :]
             
-            # Find pixels above threshold
-            edge_pixels = np.where(row_gradients > self.edge_threshold)[0]
+            # Find black pixels (value = 255)
+            black_pixels = np.where(row_pixels == 255)[0]
             
-            if len(edge_pixels) > 0:
-                # Line position = center of edge cluster (weighted by gradient strength)
-                weights = row_gradients[edge_pixels]
-                weighted_x = np.sum(edge_pixels * weights) / np.sum(weights)
+            if len(black_pixels) > 0:
+                # Line position = center of black pixel cluster
+                line_x = np.mean(black_pixels)
                 
-                # Confidence = normalized max gradient in this row
-                max_gradient = np.max(row_gradients)
-                confidence = min(1.0, max_gradient / (self.edge_threshold * 2))
+                # Confidence = fraction of pixels that are black in this row
+                confidence = len(black_pixels) / width
                 
-                detections.append((weighted_x, confidence))
+                detections.append((line_x, confidence))
                 valid_rows += 1
         
         # ===== Voting =====
         if detections:
-            positions, confidences = zip(*detections)
-            positions = np.array(positions)
-            confidences = np.array(confidences)
+            positions, confidences = np.array(detections).T
             
             # Weighted average position
             line_x = np.average(positions, weights=confidences)
@@ -198,7 +197,7 @@ class LineFollower(Node):
             # Overall confidence
             self.line_confidence = float(np.mean(confidences))
         else:
-            # No line detected: hold last position or center
+            # No line detected: assume center
             line_x = width / 2.0
             self.line_confidence = 0.0
         
@@ -211,7 +210,7 @@ class LineFollower(Node):
 
     def control_loop(self):
         """
-        PI controller with confidence-weighted speed adjustment.
+        PID controller with confidence-weighted speed adjustment.
         Generates cmd_vel based on lateral error and detection confidence.
         """
         if not self.enable:
@@ -224,13 +223,22 @@ class LineFollower(Node):
         
         error = self.current_error
         
-        # ===== PI Control =====
-        # Integral accumulation (prevents offset)
-        self.integral_error += error * 0.033  # Assume ~30Hz loop
-        self.integral_error = np.clip(self.integral_error, -1.0, 1.0)  # Anti-windup
+        # ===== PID Control =====
+        # Proportional term
+        p_term = self.kp * error
         
-        # PI calculation
-        w = self.kp * error + self.ki * self.integral_error
+        # Integral accumulation (prevents steady-state error)
+        self.integral_error += error * self.dt
+        self.integral_error = np.clip(self.integral_error, -1.0, 1.0)  # Anti-windup
+        i_term = self.ki * self.integral_error
+        
+        # Derivative term (reduces overshoot and improves stability)
+        derivative = (error - self.prev_error) / (self.dt + 1e-6)
+        d_term = self.kd * derivative
+        self.prev_error = error
+        
+        # Total angular velocity from PID
+        w = p_term + i_term + d_term
         w = np.clip(w, -self.w_max, self.w_max)
         
         # ===== Confidence-based Speed Adjustment =====

@@ -1,6 +1,5 @@
 # Line Follower Node Parameters
-# Gradient-based line detection with PI adaptive control
-# Alternative implementation: detects by edge gradients (not HSV color)
+# Black line detection with PID control
 
 line_follower_node:
   ros__parameters:
@@ -9,7 +8,7 @@ line_follower_node:
     velocity_scale_topic: 'velocity_scale'  # Traffic light velocity scale
     cmd_vel_topic: 'cmd_vel'         # Motor command topic
     
-    # ===== Vision Parameters (Gradient-based Detection) =====
+    # ===== Vision Parameters (Black Line Detection) =====
     # ROI: region from roi_start_fraction to roi_end_fraction of image height
     roi_start_fraction: 0.4          # Start analyzing at 40% of image height
     roi_end_fraction: 1.0            # End at 100% (bottom edge)
@@ -17,21 +16,22 @@ line_follower_node:
     # Detection: sample this many rows across ROI and vote for line position
     detection_rows: 6                # Higher = more robust but slower
     
-    # Edge detection threshold
-    # Pixels with |Sobel_X| gradient above this are considered line edges
-    edge_threshold: 40               # Adjust based on camera/lighting
+    # Black line intensity threshold
+    # Pixels with grayscale value BELOW this are considered part of the black line
+    black_threshold: 100             # Adjust based on camera/lighting (0-255, lower = darker)
     
     # Blur kernel for noise reduction (automatically made odd if even)
     blur_kernel: 5                   # Typical: 3, 5, 7
     
-    # ===== Control Parameters (PI Adaptive) =====
-    # PI gains for angular velocity control
-    kp: 0.7                          # Proportional gain - higher = more aggressive steering
-    ki: 0.06                         # Integral gain - eliminates offset
+    # ===== Control Parameters (PID Control) =====
+    # PID gains for angular velocity control
+    kp: 0.8                          # Proportional gain - higher = more aggressive steering
+    ki: 0.08                         # Integral gain - eliminates steady-state error
+    kd: 0.15                         # Derivative gain - improves stability and reduces overshoot
     
     # Velocity parameters
     v_base: 0.25                     # Base linear velocity (m/s)
-    w_max: 0.7                       # Maximum angular velocity (rad/s)
+    w_max: 0.8                       # Maximum angular velocity (rad/s)
     
     # Confidence-based speed adjustment
     # When line is not clearly detected, reduce speed automatically
