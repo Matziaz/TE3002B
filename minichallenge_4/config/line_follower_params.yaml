@@ -4,7 +4,8 @@
 line_follower_node:
   ros__parameters:
     # ROS topic configuration
-    image_topic: '/video_source/raw'
+    # Change to '/camera' if video_source/raw is not available
+    image_topic: '/camera'
     velocity_scale_topic: 'velocity_scale'
     cmd_vel_topic: 'cmd_vel'
     
