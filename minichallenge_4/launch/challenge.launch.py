@@ -17,6 +17,7 @@ def _build_nodes(context):
     # found regardless of where the workspace is installed.
     package_dir = get_package_share_directory('minichallenge_4')
     profile = LaunchConfiguration('profile').perform(context)
+    mode = LaunchConfiguration('mode').perform(context)
     launch_camera = LaunchConfiguration('launch_camera').perform(context).lower() in ('true', '1', 'yes')
 
     odometry_config = os.path.join(package_dir, 'config', 'odometry_params.yaml')
@@ -71,8 +72,7 @@ def _build_nodes(context):
             print('[challenge.launch.py] Run camera manually if needed:')
             print('  ros2 launch ros_deep_learning video_source.ros2.launch')
 
-    # Start all project nodes. These nodes communicate only through ROS topics,
-    # so no human interaction is needed after launch.
+    # Start common project nodes used in both operation modes.
     actions.extend([
         Node(
             package='minichallenge_4',
@@ -95,21 +95,28 @@ def _build_nodes(context):
             output='screen',
             parameters=params['traffic'],
         ),
-        Node(
-            package='minichallenge_4',
-            executable='go_to_goal_node',
-            name='go_to_goal_node',
-            output='screen',
-            parameters=params['go_to_goal'],
-        ),
-        Node(
-            package='minichallenge_4',
-            executable='line_follower_node',
-            name='line_follower_node',
-            output='screen',
-            parameters=params['line_follower'],
-        ),
     ])
+
+    if mode == 'go_to_goal':
+        actions.append(
+            Node(
+                package='minichallenge_4',
+                executable='go_to_goal_node',
+                name='go_to_goal_node',
+                output='screen',
+                parameters=params['go_to_goal'],
+            )
+        )
+    else:
+        actions.append(
+            Node(
+                package='minichallenge_4',
+                executable='line_follower_node',
+                name='line_follower_node',
+                output='screen',
+                parameters=params['line_follower'],
+            )
+        )
 
     return actions
 
@@ -121,6 +128,12 @@ def generate_launch_description():
             'profile',
             default_value='default',
             description='Config profile name: default, PROFILE_FAST, PROFILE_LAB_SAFE, PROFILE_POOR_LIGHTING, PROFILE_PRECISION',
+        ),
+        DeclareLaunchArgument(
+            'mode',
+            default_value='line_follow',
+            choices=['line_follow', 'go_to_goal'],
+            description='Execution mode: line_follow launches line_follower_node, go_to_goal launches go_to_goal_node.',
         ),
         DeclareLaunchArgument(
             'launch_camera',

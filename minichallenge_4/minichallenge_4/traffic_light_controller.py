@@ -136,19 +136,28 @@ class TrafficLightController(Node):
             self.red_latched = True
 
         if self.red_latched:
+            # If latched by red, only a valid green will release the latch
+            # and allow motion again.
             if effective_color == 'green':
                 self._process_state_transition(TrafficState.MOVING, 'Green detected after latched red')
             else:
                 self._force_state(TrafficState.STOPPED, 'Red latch active; waiting for green')
         else:
+            # Normal operation: accept red/yellow/green transitions. If the
+            # signal becomes unknown (e.g., temporary loss), DO NOT switch to
+            # UNKNOWN or STOPPED — keep the last non-red movement state
+            # (green->moving, yellow->slow) until an explicit red is seen.
             if effective_color == 'red':
                 self._process_state_transition(TrafficState.STOPPED, 'Red light detected')
             elif effective_color == 'yellow':
                 self._process_state_transition(TrafficState.SLOW, 'Yellow light detected')
             elif effective_color == 'green':
                 self._process_state_transition(TrafficState.MOVING, 'Green light detected')
-            else:
-                self._process_state_transition(TrafficState.UNKNOWN, 'Signal lost or low confidence')
+            elif effective_color == 'unknown':
+                # Keep current state; do not transition to UNKNOWN on loss
+                # of signal so the robot continues moving/slow as previously
+                # decided until a red appears.
+                pass
 
         self._publish_state()
         self._publish_velocity_scale(self.velocity_scale)

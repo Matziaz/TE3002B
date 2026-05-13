@@ -81,6 +81,7 @@ class LineFollower(Node):
         # Internal state.
         self.velocity_scale = 1.0
         self.prev_error = 0.0
+        self.current_error = 0.0
         self.cv_bridge = CvBridge()
         
         # QoS profile for best-effort topics (image is time-sensitive).
@@ -186,13 +187,13 @@ class LineFollower(Node):
             return
         
         # PD control: w = kp * error + kd * d(error)/dt
-        error = self.current_error if hasattr(self, 'current_error') else 0.0
+        error = self.current_error
         error_derivative = error - self.prev_error
         self.prev_error = error
         
         # Calculate angular velocity.
         w = self.kp * error + self.kd * error_derivative
-        w = np.clip(w, -self.w_max, self.w_max)
+        w = np.clip(w * self.velocity_scale, -self.w_max, self.w_max)
         
         # Linear velocity is the base velocity, scaled by traffic light.
         v = self.v_base * self.velocity_scale
