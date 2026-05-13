@@ -61,6 +61,7 @@ def _build_nodes(context):
             actions.append(
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(camera_launch_file),
+                    launch_arguments={'camera_topic': LaunchConfiguration('camera_topic')},
                     condition=IfCondition(LaunchConfiguration('launch_camera')),
                 )
             )
@@ -125,6 +126,11 @@ def generate_launch_description():
             'launch_camera',
             default_value='false',
             description='If true, also launches ros_deep_learning video_source.ros2.launch for /video_source/raw. Default is false because the Puzzlebot camera is normally launched separately.',
+        ),
+        DeclareLaunchArgument(
+            'camera_topic',
+            default_value='/video_source/raw',
+            description='Topic name to publish camera frames on (forwarded to the included camera launch).',
         ),
         OpaqueFunction(function=_build_nodes),
     ])
