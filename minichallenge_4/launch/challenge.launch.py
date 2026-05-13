@@ -23,6 +23,7 @@ def _build_nodes(context):
     color_config = os.path.join(package_dir, 'config', 'color_detector_params.yaml')
     traffic_config = os.path.join(package_dir, 'config', 'traffic_light_params.yaml')
     go_to_goal_config = os.path.join(package_dir, 'config', 'go_to_goal_params.yaml')
+    line_follower_config = os.path.join(package_dir, 'config', 'line_follower_params.yaml')
 
     # Each node receives its own base YAML file. If a profile is selected, the
     # profile file is appended so it can override default values.
@@ -31,6 +32,7 @@ def _build_nodes(context):
         'color': [color_config],
         'traffic': [traffic_config],
         'go_to_goal': [go_to_goal_config],
+        'line_follower': [line_follower_config],
     }
 
     # Optional profiles allow changing tuning presets from the launch command
@@ -98,6 +100,13 @@ def _build_nodes(context):
             name='go_to_goal_node',
             output='screen',
             parameters=params['go_to_goal'],
+        ),
+        Node(
+            package='minichallenge_4',
+            executable='line_follower_node',
+            name='line_follower_node',
+            output='screen',
+            parameters=params['line_follower'],
         ),
     ])
 

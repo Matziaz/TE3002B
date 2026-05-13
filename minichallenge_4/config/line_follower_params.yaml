@@ -1,0 +1,48 @@
+# Line Follower Node Parameters
+# PD-based line following with traffic light integration
+
+line_follower_node:
+  ros__parameters:
+    # ROS topic configuration
+    image_topic: '/video_source/raw'
+    velocity_scale_topic: 'velocity_scale'
+    cmd_vel_topic: 'cmd_vel'
+    
+    # Line detection: HSV color range
+    # For WHITE line:
+    #   H: 0-180 (any hue works for white)
+    #   S: 0-50   (low saturation = white/gray)
+    #   V: 200-255 (high brightness = white)
+    # For BLACK line:
+    #   H: 0-180 (any hue works for black)
+    #   S: 0-255 (saturation irrelevant)
+    #   V: 0-100  (low brightness = black)
+    line_color: 'white'  # 'white' or 'black'
+    h_lower: 0
+    h_upper: 180
+    s_lower: 0
+    s_upper: 50       # Change to 255 if tuning for black
+    v_lower: 200      # Change to 0 if tuning for black
+    v_upper: 255      # Change to 100 if tuning for black
+    
+    # Region of interest: detect line in the lower portion of the image
+    # Values 0.0-1.0 represent fraction of image height
+    roi_start_fraction: 0.67  # Start detection at 67% down the image
+    roi_end_fraction: 1.0     # End at 100% (bottom edge)
+    
+    # PD controller gains
+    # kp: proportional gain - higher = more aggressive steering
+    # kd: derivative gain - higher = dampens oscillations
+    kp: 0.5
+    kd: 0.1
+    
+    # Velocity parameters
+    v_base: 0.2       # Base linear velocity in m/s
+    w_max: 0.5        # Maximum angular velocity in rad/s (clipping)
+    
+    # Control loop frequency (timer period in seconds)
+    # ~30 Hz = 0.033 s, ~10 Hz = 0.1 s
+    control_loop_rate: 0.033
+    
+    # Enable/disable the line follower (useful for testing)
+    enable_line_follower: true

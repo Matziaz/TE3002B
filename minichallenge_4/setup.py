@@ -35,6 +35,7 @@ setup(
             'color_detector_node = minichallenge_4.color_detector_node:main',
             'traffic_light_controller = minichallenge_4.traffic_light_controller:main',
             'go_to_goal_node = minichallenge_4.go_to_goal_node:main',
+            'line_follower_node = minichallenge_4.line_follower_node:main',
         ],
     },
 )
