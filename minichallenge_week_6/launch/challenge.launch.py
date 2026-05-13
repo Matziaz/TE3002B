@@ -15,7 +15,7 @@ import os
 def _build_nodes(context):
     # Locate the installed package share directory so configuration files can be
     # found regardless of where the workspace is installed.
-    package_dir = get_package_share_directory('minichallenge_4')
+    package_dir = get_package_share_directory('minichallenge_week_6')
     profile = LaunchConfiguration('profile').perform(context)
     mode = LaunchConfiguration('mode').perform(context)
     launch_camera = LaunchConfiguration('launch_camera').perform(context).lower() in ('true', '1', 'yes')
@@ -75,21 +75,21 @@ def _build_nodes(context):
     # Start common project nodes used in both operation modes.
     actions.extend([
         Node(
-            package='minichallenge_4',
+            package='minichallenge_week_6',
             executable='odometry_node',
             name='odometry_node',
             output='screen',
             parameters=params['odometry'],
         ),
         Node(
-            package='minichallenge_4',
+            package='minichallenge_week_6',
             executable='color_detector_node',
             name='color_detector_node',
             output='screen',
             parameters=params['color'],
         ),
         Node(
-            package='minichallenge_4',
+            package='minichallenge_week_6',
             executable='traffic_light_controller',
             name='traffic_light_controller',
             output='screen',
@@ -100,7 +100,7 @@ def _build_nodes(context):
     if mode == 'go_to_goal':
         actions.append(
             Node(
-                package='minichallenge_4',
+                package='minichallenge_week_6',
                 executable='go_to_goal_node',
                 name='go_to_goal_node',
                 output='screen',
@@ -110,7 +110,7 @@ def _build_nodes(context):
     else:
         actions.append(
             Node(
-                package='minichallenge_4',
+                package='minichallenge_week_6',
                 executable='line_follower_node',
                 name='line_follower_node',
                 output='screen',

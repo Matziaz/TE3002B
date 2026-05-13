@@ -1,4 +1,4 @@
-MiniChallenge 4 corrected for Puzzlebot Jetson
+MiniChallenge Week 6 corrected for Puzzlebot Jetson
 
 Changes:
 - Fixed OpenCV font constant in color_detector_node.py.
@@ -7,9 +7,9 @@ Changes:
 
 Run on Jetson:
 cd ~/ros2_ws
-colcon build --packages-select minichallenge_4
+colcon build --packages-select minichallenge_week_6
 source install/setup.bash
-ros2 launch minichallenge_4 challenge.launch.py
+ros2 launch minichallenge_week_6 challenge.launch.py
 
 If the camera is already running separately:
-ros2 launch minichallenge_4 challenge.launch.py launch_camera:=false
+ros2 launch minichallenge_week_6 challenge.launch.py launch_camera:=false
