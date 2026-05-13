@@ -135,10 +135,11 @@ class LineFollower(Node):
         self.velocity_scale = max(0.0, float(msg.data))
 
     def process_image(self, cv_image):
-        """Detect line using HSV thresholding and contour analysis.
+        """Detect line using row-by-row analysis.
         
-        Selects the contour closest to image center instead of the largest,
-        which helps distinguish between multiple parallel lines.
+        Analyzes each horizontal row in the ROI to find black line pixels.
+        For multiple parallel lines, selects the one closest to image center.
+        This approach is more robust than contour detection with parallel lines.
         """
         # Convert BGR to HSV.
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
@@ -160,39 +161,59 @@ class LineFollower(Node):
         
         mask = cv2.inRange(hsv_roi, lower, upper)
         
-        # Find contours to locate the line.
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         image_center_x = width / 2.0
+        line_positions = []  # Store detected line x-positions for each row
         
-        if contours:
-            # Find contour closest to image center (not the largest).
-            # This helps when multiple parallel lines exist.
-            closest_contour = None
-            min_distance = float('inf')
+        # Analyze each row to find line position closest to center.
+        for row_idx in range(mask.shape[0]):
+            row_pixels = mask[row_idx, :]
             
-            for contour in contours:
-                M = cv2.moments(contour)
-                if M['m00'] > 0:  # Only consider contours with valid moments
-                    cx = M['m10'] / M['m00']
-                    # Distance from center of image
-                    distance_from_center = abs(cx - image_center_x)
+            # Find all pixels that are part of a line (white in mask).
+            line_pixel_indices = np.where(row_pixels == 255)[0]
+            
+            if len(line_pixel_indices) > 0:
+                # Find clusters of consecutive pixels (separate lines).
+                # Calculate gaps between consecutive line pixels.
+                gaps = np.diff(line_pixel_indices)
+                
+                # Threshold for gap size (minimum gap to consider it a separate line).
+                # Adjust based on expected line width in pixels.
+                gap_threshold = 10
+                
+                # Find cluster boundaries.
+                gap_positions = np.where(gaps > gap_threshold)[0]
+                
+                if len(gap_positions) > 0:
+                    # Multiple clusters detected; split them.
+                    cluster_starts = [line_pixel_indices[0]]
+                    cluster_ends = []
                     
-                    if distance_from_center < min_distance:
-                        min_distance = distance_from_center
-                        closest_contour = contour
+                    for gap_pos in gap_positions:
+                        cluster_ends.append(line_pixel_indices[gap_pos])
+                        cluster_starts.append(line_pixel_indices[gap_pos + 1])
+                    cluster_ends.append(line_pixel_indices[-1])
+                    
+                    clusters = list(zip(cluster_starts, cluster_ends))
+                    
+                    # Find cluster closest to image center.
+                    closest_cluster = min(clusters, 
+                                        key=lambda c: abs((c[0] + c[1]) / 2.0 - image_center_x))
+                    cluster_center = (closest_cluster[0] + closest_cluster[1]) / 2.0
+                else:
+                    # Single cluster; take its center.
+                    cluster_center = np.mean(line_pixel_indices)
+                
+                line_positions.append(cluster_center)
+        
+        # Calculate overall line position from collected row positions.
+        if line_positions:
+            line_x = np.mean(line_positions)
             
-            if closest_contour is not None:
-                M = cv2.moments(closest_contour)
-                cx = M['m10'] / M['m00']
-                
-                # Normalize lateral error to [-1, 1].
-                error = (cx - image_center_x) / (image_center_x + 1e-6)
-                error = np.clip(error, -1.0, 1.0)
-                
-                self.current_error = error
-            else:
-                self.current_error = 0.0
+            # Normalize lateral error to [-1, 1].
+            error = (line_x - image_center_x) / (image_center_x + 1e-6)
+            error = np.clip(error, -1.0, 1.0)
+            
+            self.current_error = error
         else:
             # No line detected.
             self.current_error = 0.0
