@@ -32,10 +32,10 @@ line_follower_node:
     
     # PID controller gains
     # kp: proportional gain - higher = more aggressive steering
-    # ki: integral gain - eliminates steady-state error
+    # ki: integral gain - eliminates steady-state error (start LOW, increase gradually)
     # kd: derivative gain - improves stability and reduces overshoot
     kp: 0.8
-    ki: 0.08
+    ki: 0.02           # Start LOW and increase gradually if needed (0.01 -> 0.05)
     kd: 0.15
     
     # Velocity parameters

@@ -219,7 +219,12 @@ class LineFollower(Node):
             self.current_error = 0.0
 
     def control_loop(self):
-        """PID controller to generate cmd_vel based on lateral error."""
+        """PID controller to generate cmd_vel based on lateral error.
+        
+        Corrected PID implementation:
+        - Derivative: NO division by dt (use raw error difference)
+        - Integral: Accumulate WITHOUT dt, wider anti-windup clipping
+        """
         if not self.enable:
             # Publish zero velocity if disabled.
             cmd = Twist()
@@ -230,17 +235,17 @@ class LineFollower(Node):
         
         error = self.current_error
         
-        # ===== PID Control =====
+        # ===== PID Control (Corrected) =====
         # Proportional term
         p_term = self.kp * error
         
-        # Integral accumulation (prevents steady-state error).
-        self.integral_error += error * self.dt
-        self.integral_error = np.clip(self.integral_error, -1.0, 1.0)  # Anti-windup
+        # Integral accumulation (NO dt multiplication, prevents saturation).
+        self.integral_error += error
+        self.integral_error = np.clip(self.integral_error, -2.0, 2.0)  # Wider anti-windup range
         i_term = self.ki * self.integral_error
         
-        # Derivative term (reduces overshoot and improves stability).
-        derivative = (error - self.prev_error) / (self.dt + 1e-6)
+        # Derivative term (NO dt division, use raw error difference).
+        derivative = error - self.prev_error
         d_term = self.kd * derivative
         self.prev_error = error
         
