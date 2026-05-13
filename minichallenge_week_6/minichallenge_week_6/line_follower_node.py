@@ -135,7 +135,11 @@ class LineFollower(Node):
         self.velocity_scale = max(0.0, float(msg.data))
 
     def process_image(self, cv_image):
-        """Detect line using HSV thresholding and contour analysis."""
+        """Detect line using HSV thresholding and contour analysis.
+        
+        Selects the contour closest to image center instead of the largest,
+        which helps distinguish between multiple parallel lines.
+        """
         # Convert BGR to HSV.
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
         
@@ -159,17 +163,30 @@ class LineFollower(Node):
         # Find contours to locate the line.
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
+        image_center_x = width / 2.0
+        
         if contours:
-            # Find the largest contour (the line).
-            largest_contour = max(contours, key=cv2.contourArea)
+            # Find contour closest to image center (not the largest).
+            # This helps when multiple parallel lines exist.
+            closest_contour = None
+            min_distance = float('inf')
             
-            # Calculate centroid.
-            M = cv2.moments(largest_contour)
-            if M['m00'] > 0:
+            for contour in contours:
+                M = cv2.moments(contour)
+                if M['m00'] > 0:  # Only consider contours with valid moments
+                    cx = M['m10'] / M['m00']
+                    # Distance from center of image
+                    distance_from_center = abs(cx - image_center_x)
+                    
+                    if distance_from_center < min_distance:
+                        min_distance = distance_from_center
+                        closest_contour = contour
+            
+            if closest_contour is not None:
+                M = cv2.moments(closest_contour)
                 cx = M['m10'] / M['m00']
                 
                 # Normalize lateral error to [-1, 1].
-                image_center_x = width / 2.0
                 error = (cx - image_center_x) / (image_center_x + 1e-6)
                 error = np.clip(error, -1.0, 1.0)
                 
