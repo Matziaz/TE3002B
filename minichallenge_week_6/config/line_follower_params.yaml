@@ -1,45 +1,50 @@
 # Line Follower Node Parameters
-# Black line detection with PID control
+# PID-based line following with traffic light integration
 
 line_follower_node:
   ros__parameters:
-    # ===== ROS Topic Configuration =====
-    image_topic: '/camera'           # Camera feed topic
-    velocity_scale_topic: 'velocity_scale'  # Traffic light velocity scale
-    cmd_vel_topic: 'cmd_vel'         # Motor command topic
+    # ROS topic configuration
+    image_topic: '/camera'
+    velocity_scale_topic: 'velocity_scale'
+    cmd_vel_topic: 'cmd_vel'
     
-    # ===== Vision Parameters (Black Line Detection) =====
-    # ROI: region from roi_start_fraction to roi_end_fraction of image height
-    roi_start_fraction: 0.4          # Start analyzing at 40% of image height
-    roi_end_fraction: 1.0            # End at 100% (bottom edge)
+    # Line detection: HSV color range
+    # For BLACK line:
+    #   H: 0-180 (any hue works for black)
+    #   S: 0-255 (saturation irrelevant)
+    #   V: 0-100  (low brightness = black)
+    # For WHITE line:
+    #   H: 0-180 (any hue works for white)
+    #   S: 0-50   (low saturation = white/gray)
+    #   V: 200-255 (high brightness = white)
+    line_color: 'black'  # 'white' or 'black'
+    h_lower: 0
+    h_upper: 180
+    s_lower: 0
+    s_upper: 255      # 255 for black, 50 for white
+    v_lower: 0        # 0 for black, 200 for white
+    v_upper: 100      # 100 for black, 255 for white
     
-    # Detection: sample this many rows across ROI and vote for line position
-    detection_rows: 6                # Higher = more robust but slower
+    # Region of interest: detect line in the lower portion of the image
+    # Values 0.0-1.0 represent fraction of image height
+    roi_start_fraction: 0.4   # Start detection at 40% down the image
+    roi_end_fraction: 1.0     # End at 100% (bottom edge)
     
-    # Black line intensity threshold
-    # Pixels with grayscale value BELOW this are considered part of the black line
-    black_threshold: 100             # Adjust based on camera/lighting (0-255, lower = darker)
-    
-    # Blur kernel for noise reduction (automatically made odd if even)
-    blur_kernel: 5                   # Typical: 3, 5, 7
-    
-    # ===== Control Parameters (PID Control) =====
-    # PID gains for angular velocity control
-    kp: 0.8                          # Proportional gain - higher = more aggressive steering
-    ki: 0.08                         # Integral gain - eliminates steady-state error
-    kd: 0.15                         # Derivative gain - improves stability and reduces overshoot
+    # PID controller gains
+    # kp: proportional gain - higher = more aggressive steering
+    # ki: integral gain - eliminates steady-state error
+    # kd: derivative gain - improves stability and reduces overshoot
+    kp: 0.8
+    ki: 0.08
+    kd: 0.15
     
     # Velocity parameters
-    v_base: 0.25                     # Base linear velocity (m/s)
-    w_max: 0.8                       # Maximum angular velocity (rad/s)
+    v_base: 0.25      # Base linear velocity in m/s
+    w_max: 0.8        # Maximum angular velocity in rad/s (clipping)
     
-    # Confidence-based speed adjustment
-    # When line is not clearly detected, reduce speed automatically
-    confidence_threshold: 0.25       # Min confidence (0-1) to move at full speed
-    confidence_scaling: true         # Enable/disable automatic speed reduction
+    # Control loop frequency (timer period in seconds)
+    # ~30 Hz = 0.033 s, ~10 Hz = 0.1 s
+    control_loop_rate: 0.033
     
-    # Control loop timing
-    control_loop_rate: 0.033         # Timer period in seconds (~30 Hz)
-    
-    # Enable/disable line follower
-    enable_line_follower: true       # Set to false for manual testing
+    # Enable/disable the line follower (useful for testing)
+    enable_line_follower: true

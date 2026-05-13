@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Line follower node using black line detection and PID control.
-Detects black lines by thresholding pixel intensity (dark pixels).
-"""
+"""Line follower node with PID control and traffic light integration."""
 
 import cv2
 import numpy as np
@@ -16,11 +13,10 @@ from cv_bridge import CvBridge
 
 
 class LineFollower(Node):
-    """
-    Black line follower with PID control.
+    """PID-based line follower node.
     
-    Detects black lines by thresholding grayscale intensity.
-    Uses PID (Proportional-Integral-Derivative) control for smooth steering.
+    Detects line using HSV color thresholding and contour analysis.
+    Uses PID control for smooth and stable steering.
     
     Subscribes to:
     - /camera (sensor_msgs/Image): Camera feed
@@ -28,77 +24,73 @@ class LineFollower(Node):
     
     Publishes to:
     - cmd_vel (geometry_msgs/Twist): Motor commands
-    - line_confidence (std_msgs/Float32): Detection confidence [0,1]
+    - lateral_error (std_msgs/Float32): Lateral error for debugging
     """
 
     def __init__(self):
         super().__init__('line_follower_node')
 
-        # ===== ROS Topic Configuration =====
+        # Declare all configurable parameters.
         self.declare_parameter('image_topic', '/camera')
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
         
-        # ===== Vision Parameters (Black Line Detection) =====
-        # ROI: analyze these rows for line detection
-        self.declare_parameter('roi_start_fraction', 0.4)   # Start at 40% of height
+        # Line detection parameters (HSV color range).
+        self.declare_parameter('line_color', 'black')  # 'white' or 'black'
+        self.declare_parameter('h_lower', 0)
+        self.declare_parameter('h_upper', 180)
+        self.declare_parameter('s_lower', 0)
+        self.declare_parameter('s_upper', 255)
+        self.declare_parameter('v_lower', 0)
+        self.declare_parameter('v_upper', 100)
+        
+        # Region of interest: detect line in the lower portion of the image.
+        self.declare_parameter('roi_start_fraction', 0.4)   # Start at 40% of image height
         self.declare_parameter('roi_end_fraction', 1.0)     # End at 100% (bottom)
         
-        # Number of horizontal rows to sample for line detection
-        self.declare_parameter('detection_rows', 6)
-        
-        # Black line intensity threshold: pixels below this are considered part of the line
-        self.declare_parameter('black_threshold', 100)      # Grayscale value (0-255)
-        
-        # Blur kernel size for noise reduction (must be odd)
-        self.declare_parameter('blur_kernel', 5)
-        
-        # ===== Control Parameters (PID) =====
+        # Control parameters (PID).
         self.declare_parameter('kp', 0.8)           # Proportional gain for angular velocity
         self.declare_parameter('ki', 0.08)          # Integral gain - reduces steady-state error
         self.declare_parameter('kd', 0.15)          # Derivative gain - improves stability
         self.declare_parameter('v_base', 0.25)      # Base linear velocity (m/s)
         self.declare_parameter('w_max', 0.8)        # Max angular velocity (rad/s)
-        
-        # Confidence scaling: reduce speed if line not clearly detected
-        self.declare_parameter('confidence_threshold', 0.3)  # Min confidence to move
-        self.declare_parameter('confidence_scaling', True)   # Enable confidence-based speed adjustment
-        
         self.declare_parameter('control_loop_rate', 0.033)  # ~30 Hz
+        
+        
+        # Enable/disable.
         self.declare_parameter('enable_line_follower', True)
         
-        # ===== Read Parameters =====
+        # Read parameters.
         self.image_topic = self.get_parameter('image_topic').value
         self.velocity_scale_topic = self.get_parameter('velocity_scale_topic').value
         self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
         
+        self.line_color = self.get_parameter('line_color').value
+        self.h_lower = int(self.get_parameter('h_lower').value)
+        self.h_upper = int(self.get_parameter('h_upper').value)
+        self.s_lower = int(self.get_parameter('s_lower').value)
+        self.s_upper = int(self.get_parameter('s_upper').value)
+        self.v_lower = int(self.get_parameter('v_lower').value)
+        self.v_upper = int(self.get_parameter('v_upper').value)
+        
         self.roi_start_fraction = float(self.get_parameter('roi_start_fraction').value)
         self.roi_end_fraction = float(self.get_parameter('roi_end_fraction').value)
-        self.detection_rows = int(self.get_parameter('detection_rows').value)
-        self.black_threshold = int(self.get_parameter('black_threshold').value)
-        self.blur_kernel = int(self.get_parameter('blur_kernel').value)
-        if self.blur_kernel % 2 == 0:
-            self.blur_kernel += 1  # Ensure odd
         
         self.kp = float(self.get_parameter('kp').value)
         self.ki = float(self.get_parameter('ki').value)
         self.kd = float(self.get_parameter('kd').value)
         self.v_base = float(self.get_parameter('v_base').value)
         self.w_max = float(self.get_parameter('w_max').value)
-        self.confidence_threshold = float(self.get_parameter('confidence_threshold').value)
-        self.confidence_scaling = self.get_parameter('confidence_scaling').value
-        
         control_loop_rate = float(self.get_parameter('control_loop_rate').value)
         self.enable = self.get_parameter('enable_line_follower').value
         
-        # ===== Internal State =====
+        # Internal state (PID).
         self.velocity_scale = 1.0
+        self.prev_error = 0.0
         self.current_error = 0.0
-        self.prev_error = 0.0      # For derivative term
         self.integral_error = 0.0
-        self.line_confidence = 0.0
         self.cv_bridge = CvBridge()
-        self.dt = 0.033            # Assuming ~30Hz loop
+        self.dt = control_loop_rate  # Time step for PID integral and derivative
         
         # QoS profile for best-effort topics (image is time-sensitive).
         qos = QoSProfile(
@@ -113,21 +105,21 @@ class LineFollower(Node):
             depth=5
         )
         
-        # Create subscriptions
+        # Create subscriptions.
         self.create_subscription(Image, self.image_topic, self.image_cb, qos)
         self.create_subscription(Float32, self.velocity_scale_topic, self.velocity_scale_cb, qos)
         
-        # Create publishers
+        # Create publishers.
         self.cmd_pub = self.create_publisher(Twist, self.cmd_vel_topic, qos_reliable)
-        self.confidence_pub = self.create_publisher(Float32, 'line_confidence', qos)
+        self.error_pub = self.create_publisher(Float32, 'lateral_error', qos)
         
-        # Control loop timer
+        # Control loop timer.
         self.create_timer(control_loop_rate, self.control_loop)
         
+        # Debug logging.
         self.get_logger().info(
-            f'Line Follower (Black Line Detection with PID): roi=[{self.roi_start_fraction:.2f}, {self.roi_end_fraction:.2f}], '
-            f'rows={self.detection_rows}, black_threshold={self.black_threshold}, '
-            f'kp={self.kp}, ki={self.ki}, kd={self.kd}, v_base={self.v_base}'
+            f'Line follower initialized (PID): color={self.line_color}, '
+            f'kp={self.kp}, ki={self.ki}, kd={self.kd}, v_base={self.v_base}, w_max={self.w_max}'
         )
 
     def image_cb(self, msg: Image):
@@ -143,78 +135,55 @@ class LineFollower(Node):
         self.velocity_scale = max(0.0, float(msg.data))
 
     def process_image(self, cv_image):
-        """
-        Detect black line by thresholding grayscale intensity.
-        Sets self.current_error and self.line_confidence.
-        """
-        height, width = cv_image.shape[:2]
+        """Detect line using HSV thresholding and contour analysis."""
+        # Convert BGR to HSV.
+        hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
         
-        # Convert to grayscale
-        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        
-        # Apply Gaussian blur to reduce noise
-        gray = cv2.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
-        
-        # ===== Black Line Detection =====
-        # Create binary image: black pixels (low intensity) = 255, others = 0
-        _, binary = cv2.threshold(gray, self.black_threshold, 255, cv2.THRESH_BINARY_INV)
-        
-        # ===== Multi-row Detection =====
-        # Sample multiple rows from ROI and vote for line position
+        # Extract region of interest (lower portion of image).
+        height = cv_image.shape[0]
+        width = cv_image.shape[1]
         roi_start = int(height * self.roi_start_fraction)
         roi_end = int(height * self.roi_end_fraction)
-        roi_height = max(1, roi_end - roi_start)
+        hsv_roi = hsv[roi_start:roi_end, :]
         
-        # Sample rows evenly distributed across ROI
-        row_indices = np.linspace(roi_start, roi_end - 1, self.detection_rows, dtype=int)
+        # Create mask based on line color.
+        if self.line_color.lower() == 'white':
+            lower = np.array([self.h_lower, self.s_lower, self.v_lower], dtype=np.uint8)
+            upper = np.array([self.h_upper, self.s_upper, self.v_upper], dtype=np.uint8)
+        else:  # black
+            lower = np.array([self.h_lower, self.s_lower, self.v_lower], dtype=np.uint8)
+            upper = np.array([self.h_upper, self.s_upper, self.v_upper], dtype=np.uint8)
         
-        detections = []  # List of (x_position, confidence) for each row
-        valid_rows = 0
+        mask = cv2.inRange(hsv_roi, lower, upper)
         
-        for row_idx in row_indices:
-            row_pixels = binary[row_idx, :]
+        # Find contours to locate the line.
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            # Find the largest contour (the line).
+            largest_contour = max(contours, key=cv2.contourArea)
             
-            # Find black pixels (value = 255)
-            black_pixels = np.where(row_pixels == 255)[0]
-            
-            if len(black_pixels) > 0:
-                # Line position = center of black pixel cluster
-                line_x = np.mean(black_pixels)
+            # Calculate centroid.
+            M = cv2.moments(largest_contour)
+            if M['m00'] > 0:
+                cx = M['m10'] / M['m00']
                 
-                # Confidence = fraction of pixels that are black in this row
-                confidence = len(black_pixels) / width
+                # Normalize lateral error to [-1, 1].
+                image_center_x = width / 2.0
+                error = (cx - image_center_x) / (image_center_x + 1e-6)
+                error = np.clip(error, -1.0, 1.0)
                 
-                detections.append((line_x, confidence))
-                valid_rows += 1
-        
-        # ===== Voting =====
-        if detections:
-            positions, confidences = np.array(detections).T
-            
-            # Weighted average position
-            line_x = np.average(positions, weights=confidences)
-            
-            # Overall confidence
-            self.line_confidence = float(np.mean(confidences))
+                self.current_error = error
+            else:
+                self.current_error = 0.0
         else:
-            # No line detected: assume center
-            line_x = width / 2.0
-            self.line_confidence = 0.0
-        
-        # ===== Lateral Error Calculation =====
-        # Error: normalized distance from image center
-        # Range: [-1, 1] where -1 = line far left, 0 = centered, +1 = line far right
-        image_center_x = width / 2.0
-        error = (line_x - image_center_x) / (image_center_x + 1e-6)
-        self.current_error = np.clip(error, -1.0, 1.0)
+            # No line detected.
+            self.current_error = 0.0
 
     def control_loop(self):
-        """
-        PID controller with confidence-weighted speed adjustment.
-        Generates cmd_vel based on lateral error and detection confidence.
-        """
+        """PID controller to generate cmd_vel based on lateral error."""
         if not self.enable:
-            # Publish zero velocity if disabled
+            # Publish zero velocity if disabled.
             cmd = Twist()
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
@@ -227,45 +196,33 @@ class LineFollower(Node):
         # Proportional term
         p_term = self.kp * error
         
-        # Integral accumulation (prevents steady-state error)
+        # Integral accumulation (prevents steady-state error).
         self.integral_error += error * self.dt
         self.integral_error = np.clip(self.integral_error, -1.0, 1.0)  # Anti-windup
         i_term = self.ki * self.integral_error
         
-        # Derivative term (reduces overshoot and improves stability)
+        # Derivative term (reduces overshoot and improves stability).
         derivative = (error - self.prev_error) / (self.dt + 1e-6)
         d_term = self.kd * derivative
         self.prev_error = error
         
-        # Total angular velocity from PID
+        # Calculate angular velocity from PID.
         w = p_term + i_term + d_term
-        w = np.clip(w, -self.w_max, self.w_max)
+        w = np.clip(w * self.velocity_scale, -self.w_max, self.w_max)
         
-        # ===== Confidence-based Speed Adjustment =====
-        confidence_factor = 1.0
-        if self.confidence_scaling:
-            if self.line_confidence < self.confidence_threshold:
-                # No clear line: reduce speed significantly
-                confidence_factor = 0.1
-            else:
-                # Scale: confidence goes from threshold to 1.0
-                confidence_factor = (self.line_confidence - self.confidence_threshold) / (1.0 - self.confidence_threshold)
-                confidence_factor = np.clip(confidence_factor, 0.0, 1.0)
+        # Linear velocity is the base velocity, scaled by traffic light.
+        v = self.v_base * self.velocity_scale
         
-        # Apply velocity scale (traffic light) and confidence
-        v = self.v_base * self.velocity_scale * confidence_factor
-        w = w * self.velocity_scale
-        
-        # Publish cmd_vel
+        # Create and publish Twist message.
         cmd = Twist()
         cmd.linear.x = float(v)
         cmd.angular.z = float(w)
         self.cmd_pub.publish(cmd)
         
-        # Publish line confidence for monitoring
-        confidence_msg = Float32()
-        confidence_msg.data = float(self.line_confidence)
-        self.confidence_pub.publish(confidence_msg)
+        # Publish lateral error for debugging.
+        error_msg = Float32()
+        error_msg.data = float(error)
+        self.error_pub.publish(error_msg)
 
 
 def main(args=None):
