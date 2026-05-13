@@ -11,7 +11,7 @@ line_follower_node:
     # Line detection: HSV color range
     # For BLACK line:
     #   H: 0-180 (any hue works for black)
-    #   S: 0-255 (saturation irrelevant)
+    #   S: 0-255 (any saturation, irrelevant for black)
     #   V: 0-100  (low brightness = black)
     # For WHITE line:
     #   H: 0-180 (any hue works for white)
