@@ -32,6 +32,7 @@ class LineFollower(Node):
         self.declare_parameter('w_max', 1.2) # Mayor capacidad de giro
         self.declare_parameter('control_loop_rate', 0.033)
         self.declare_parameter('enable_line_follower', True)
+        self.declare_parameter('debug_image_topic', 'color_debug_image')
 
         # Cargar parámetros
         self.line_color = self.get_parameter('line_color').value
@@ -56,6 +57,7 @@ class LineFollower(Node):
         self.create_subscription(Float32, self.get_parameter('velocity_scale_topic').value, self.velocity_scale_cb, qos)
         self.cmd_pub = self.create_publisher(Twist, self.get_parameter('cmd_vel_topic').value, qos_reliable)
         self.error_pub = self.create_publisher(Float32, 'lateral_error', qos)
+        self.debug_pub = self.create_publisher(Image, self.get_parameter('debug_image_topic').value, qos)
 
         self.create_timer(self.get_parameter('control_loop_rate').value, self.control_loop)
         self.get_logger().info('Line follower con memoria de error iniciado.')
@@ -88,20 +90,36 @@ class LineFollower(Node):
             upper = np.array([180, 255, 100])
 
         mask = cv2.inRange(hsv_roi, lower, upper)
+        
+        # Visualización de la máscara en la imagen original
+        debug_image = cv_image.copy()
+        # Convertir máscara a 3 canales para superponer
+        mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        # Superponer la máscara en la ROI de la imagen de debug
+        debug_image[r_start:r_end, :] = cv2.addWeighted(debug_image[r_start:r_end, :], 0.7, mask_bgr, 0.3, 0)
+
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if contours:
             largest = max(contours, key=cv2.contourArea)
             M = cv2.moments(largest)
             if M['m00'] > 100: # Umbral mínimo de píxeles
-                cx = M['m10'] / M['m00']
+                cx = int(M['m10'] / M['m00'])
+                # Dibujar contorno y centroide en la imagen de debug
+                cv2.drawContours(debug_image[r_start:r_end, :], [largest], -1, (0, 255, 0), 2)
+                cv2.circle(debug_image, (cx, int((r_start + r_end) / 2)), 5, (0, 0, 255), -1)
+                
                 error = (cx - w / 2.0) / (w / 2.0)
                 self.current_error = np.clip(error, -1.0, 1.0)
                 self.line_detected = True
+                
+                # Publicar imagen de debug
+                self.debug_pub.publish(self.cv_bridge.cv2_to_imgmsg(debug_image, 'bgr8'))
                 return
 
-        # Si llegamos aquí, no hay línea
+        # Si no hay línea, publicar la imagen sin contornos
         self.line_detected = False
+        self.debug_pub.publish(self.cv_bridge.cv2_to_imgmsg(debug_image, 'bgr8'))
 
     def control_loop(self):
         if not self.get_parameter('enable_line_follower').value:

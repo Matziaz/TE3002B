@@ -25,7 +25,7 @@ line_follower_node:
     kd: 0.25
     
     # Velocidades
-    v_base: 0.12      # Velocidad base más conservadora para no salirse
+    v_base: 0.40      # Velocidad base más conservadora para no salirse
     w_max: 1.5        # ¡IMPORTANTE! Aumentado para que pueda girar en U si es necesario
     
     control_loop_rate: 0.033
