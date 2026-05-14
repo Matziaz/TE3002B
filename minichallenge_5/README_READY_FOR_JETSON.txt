@@ -7,9 +7,9 @@ Changes:
 
 Run on Jetson:
 cd ~/ros2_ws
-colcon build --packages-select minichallenge_4
+colcon build --packages-select minichallenge_5
 source install/setup.bash
-ros2 launch minichallenge_4 challenge.launch.py
+ros2 launch minichallenge_5 challenge.launch.py
 
 If the camera is already running separately:
-ros2 launch minichallenge_4 challenge.launch.py launch_camera:=false
+ros2 launch minichallenge_5 challenge.launch.py launch_camera:=false
