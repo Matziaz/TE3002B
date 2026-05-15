@@ -5,7 +5,7 @@ import os
 from glob import glob
 
 # Package name used for installation paths and console entry points.
-package_name = 'minichallenge_4'
+package_name = 'minichallenge_5'
 
 setup(
     name=package_name,
@@ -24,18 +24,18 @@ setup(
     zip_safe=True,
     maintainer='Mati',
     maintainer_email='A01772503@tec.mx',
-    description='Minichallenge 4: Traffic light navigation with color detection and robust state handling.',
+    description='Minichallenge 5: Traffic light navigation with color detection and robust state handling.',
     license='MIT',
     tests_require=['pytest'],
     # These console scripts allow each node to be launched by ROS 2 using the
     # executable names shown below.
     entry_points={
         'console_scripts': [
-            'odometry_node = minichallenge_4.odometry_node:main',
-            'color_detector_node = minichallenge_4.color_detector_node:main',
-            'traffic_light_controller = minichallenge_4.traffic_light_controller:main',
-            'go_to_goal_node = minichallenge_4.go_to_goal_node:main',
-            'line_follower_node = minichallenge_4.line_follower_node:main',
+            'odometry_node = minichallenge_5.odometry_node:main',
+            'color_detector_node = minichallenge_5.color_detector_node:main',
+            'traffic_light_controller = minichallenge_5.traffic_light_controller:main',
+            'go_to_goal_node = minichallenge_5.go_to_goal_node:main',
+            'line_follower_node = minichallenge_5.line_follower_node:main',
         ],
     },
 )
