@@ -4,10 +4,8 @@ line_follower_node:
     velocity_scale_topic: 'velocity_scale'
     cmd_vel_topic: 'cmd_vel'
 
-    # Tu línea es negra
     line_color: 'black'
 
-    # HSV para línea negra
     h_lower: 0
     h_upper: 180
     s_lower: 0
@@ -15,21 +13,30 @@ line_follower_node:
     v_lower: 0
     v_upper: 90
 
-    # Franja inferior para seguir el centro real de la línea
     roi_start_fraction: 0.72
     roi_end_fraction: 0.92
 
     min_line_area: 300.0
     morphology_kernel_size: 5
 
-    # PD se conserva
-    kp: 0.5
-    kd: 0.1
+    # PD
+    kp: 0.75
+    kd: 0.22
 
-    v_base: 0.2
-    w_max: 0.5
+    # Velocidad adaptativa
+    v_base: 0.35
+    v_min: 0.20
+    v_max: 0.48
+    slow_down_error: 0.45
 
-    # Si gira al lado contrario, cambia esto a 1.0
+    # Inercia
+    max_accel_step: 0.015
+    max_decel_step: 0.040
+
+    # Giro máximo
+    w_max: 1.25
+
+    # Si gira al lado contrario, cambia a 1.0
     steering_sign: -1.0
 
     stop_when_line_lost: true
