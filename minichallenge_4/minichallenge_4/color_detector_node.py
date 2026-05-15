@@ -62,8 +62,8 @@ class ColorDetector(Node):
         self.declare_parameter('green_upper_v', 255)
 
         # Noise/area filtering
-        self.declare_parameter('min_contour_area', 1200.0)
-        self.declare_parameter('min_square_area', 30000.0)
+        self.declare_parameter('min_contour_area', 1000.0)
+        self.declare_parameter('min_square_area', 25000.0)
         self.declare_parameter('dominance_ratio', 1.35)
         self.declare_parameter('morphology_kernel_size', 7)
         self.declare_parameter('morphology_open_iterations', 2)

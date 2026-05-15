@@ -1,63 +1,53 @@
-# Color Detection Parameters for Traffic Light Recognition
-# Robust version: filters noise, selects the largest valid contour, and uses
-# square bounding-box area as the distance/relevance criterion.
-
 color_detector_node:
   ros__parameters:
     camera_topic: '/camera'
-
-    # Resize inside the detector to reduce processing and streaming cost.
-    # Set both to 0 if you want to keep the original camera resolution.
     resize_width: 640
     resize_height: 480
 
-    # Red thresholds. Red uses two hue intervals in OpenCV HSV.
+    # Rojo
     red_lower_h: 0
-    red_upper_h: 8
-    red_lower_h2: 172
+    red_upper_h: 10
+    red_lower_h2: 170
     red_upper_h2: 179
-    red_lower_s: 90
+    red_lower_s: 70
     red_upper_s: 255
-    red_lower_v: 80
+    red_lower_v: 60
     red_upper_v: 255
 
-    # Yellow thresholds. Increase S/V minimums to avoid white/gray reflections.
-    yellow_lower_h: 22
-    yellow_upper_h: 35
-    yellow_lower_s: 90
+    # Amarillo más permisivo
+    yellow_lower_h: 16
+    yellow_upper_h: 45
+    yellow_lower_s: 45
     yellow_upper_s: 255
-    yellow_lower_v: 90
+    yellow_lower_v: 65
     yellow_upper_v: 255
 
-    # Green thresholds. These are tighter than the previous 40-80 range.
-    green_lower_h: 48
-    green_upper_h: 78
-    green_lower_s: 80
+    # Verde
+    green_lower_h: 45
+    green_upper_h: 85
+    green_lower_s: 55
     green_upper_s: 255
-    green_lower_v: 70
+    green_lower_v: 55
     green_upper_v: 255
 
-    # Noise rejection and area gate.
-    # min_contour_area removes tiny speckles.
-    # min_square_area makes the robot ignore distant/small color regions.
-    min_contour_area: 1200.0
-    min_square_area: 30000.0
-    dominance_ratio: 1.35
+    # Detectar antes y reaccionar más rápido
+    min_contour_area: 1000.0
+    min_square_area: 25000.0
+    dominance_ratio: 1.10
 
-    # Morphology filtering.
-    morphology_kernel_size: 7
-    morphology_open_iterations: 2
+    morphology_kernel_size: 5
+    morphology_open_iterations: 1
     morphology_close_iterations: 2
     blur_kernel_size: 5
 
-    # Temporal smoothing.
-    history_length: 5
+    # Muy importante: menos historial = menos retraso
+    history_length: 2
+
     debug_log_every_n_frames: 5
 
-    # Optional ROI. Leave false for full image. Turn true if you only want to
-    # detect the traffic light in the central region.
+    # Si el semáforo aparece más al centro, puedes dejarlo apagado
     use_roi: false
-    roi_x_min: 0.15
-    roi_x_max: 0.85
-    roi_y_min: 0.10
-    roi_y_max: 0.90
+    roi_x_min: 0.0
+    roi_x_max: 1.0
+    roi_y_min: 0.0
+    roi_y_max: 1.0
