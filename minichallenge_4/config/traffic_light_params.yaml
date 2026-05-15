@@ -7,11 +7,11 @@ traffic_light_controller:
     signal_loss_timeout: 2.0
 
     # Speed multiplier used when yellow is detected.
-    slow_velocity_factor: 0.3
+    slow_velocity_factor: 0.18
 
     # Minimum confidence required before trusting a color decision.
-    confidence_threshold: 0.4
+    confidence_threshold: 0.25
 
     # Number of repeated updates needed before changing states.
-    transition_frames: 3
+    transition_frames: 1
     enable_logging: true

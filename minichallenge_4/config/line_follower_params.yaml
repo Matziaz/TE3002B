@@ -20,21 +20,21 @@ line_follower_node:
     morphology_kernel_size: 5
 
     # PD
-    kp: 0.75
-    kd: 0.22
+    kp: 0.90
+    kd: 0.30
 
     # Velocidad adaptativa
-    v_base: 0.35
-    v_min: 0.20
-    v_max: 0.48
-    slow_down_error: 0.45
+    v_base: 0.50
+    v_min: 0.28
+    v_max: 0.80
+    slow_down_error: 0.36
 
     # Inercia
-    max_accel_step: 0.015
-    max_decel_step: 0.040
+    max_accel_step: 0.030
+    max_decel_step: 0.075
 
     # Giro máximo
-    w_max: 1.25
+    w_max: 1.85
 
     # Si gira al lado contrario, cambia a 1.0
     steering_sign: -1.0

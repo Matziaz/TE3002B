@@ -315,8 +315,16 @@ class LineFollower(Node):
         target_linear_x *= self.velocity_scale
         angular_z *= self.velocity_scale
 
-        # Inertia-aware smoothing
-        linear_x = self._smooth_speed(target_linear_x)
+        # Si el semáforo baja la velocidad, desacelerar más fuerte.
+        # Esto evita que amarillo o rojo se sientan ignorados por la inercia.
+        if self.velocity_scale < 1.0:
+            old_max_decel_step = self.max_decel_step
+            self.max_decel_step = max(self.max_decel_step, 0.12)
+            linear_x = self._smooth_speed(target_linear_x)
+            self.max_decel_step = old_max_decel_step
+        else:
+            linear_x = self._smooth_speed(target_linear_x)
+
 
         self.publish_cmd(linear_x, angular_z)
         self.publish_error(error)
