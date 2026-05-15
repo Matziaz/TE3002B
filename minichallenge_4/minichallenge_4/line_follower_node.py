@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Line follower node with PD control."""
 
 import cv2
@@ -253,10 +252,10 @@ class LineFollower(Node):
         line_center_x = moments['m10'] / moments['m00']
         camera_center_x = width / 2.0
 
-        # Normalized lateral error:
-        # -1.0 = line far left
-        #  0.0 = centered
-        #  1.0 = line far right
+        # Error lateral normalizado:
+        # -1.0 = izquierda extrema
+        #  0.0 = centro
+        #  1.0 = derecha extrema
         error = (line_center_x - camera_center_x) / camera_center_x
         error = float(np.clip(error, -1.0, 1.0))
 
@@ -283,7 +282,7 @@ class LineFollower(Node):
         error_derivative = error - self.prev_error
         self.prev_error = error
 
-        # PD control
+        # Control PD:
         pd_output = self.kp * error + self.kd * error_derivative
 
         angular_z = self.steering_sign * pd_output
@@ -296,9 +295,6 @@ class LineFollower(Node):
             )
         )
 
-        # Adaptive speed:
-        # centered line -> close to v_max
-        # large error -> close to v_min
         error_abs = abs(error)
 
         if self.slow_down_error <= 0.0:
@@ -308,15 +304,9 @@ class LineFollower(Node):
 
         target_linear_x = self.v_min + (self.v_max - self.v_min) * speed_factor
 
-        # Traffic-light velocity scale:
-        # red -> 0.0
-        # yellow -> reduced
-        # green -> normal
         target_linear_x *= self.velocity_scale
         angular_z *= self.velocity_scale
 
-        # Si el semáforo baja la velocidad, desacelerar más fuerte.
-        # Esto evita que amarillo o rojo se sientan ignorados por la inercia.
         if self.velocity_scale < 1.0:
             old_max_decel_step = self.max_decel_step
             self.max_decel_step = max(self.max_decel_step, 0.12)

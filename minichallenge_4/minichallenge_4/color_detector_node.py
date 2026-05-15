@@ -481,7 +481,7 @@ class ColorDetector(Node):
     def _draw_follow_line(self, debug):
         h, w = debug.shape[:2]
 
-        # Buscar la línea principalmente en la parte inferior de la imagen
+        # Buscar la línea 
         roi_y_start = int(h * 0.45)
         roi = debug[roi_y_start:h, 0:w]
 

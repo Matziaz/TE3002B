@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # NumPy is used for trigonometric functions and angle normalization.
 import numpy as np
 # rclpy provides the ROS 2 Python node API.

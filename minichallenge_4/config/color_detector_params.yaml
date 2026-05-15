@@ -30,7 +30,7 @@ color_detector_node:
     green_lower_v: 55
     green_upper_v: 255
 
-    # Detectar antes y reaccionar más rápido
+    # Detectar distancia mínima
     min_contour_area: 1000.0
     min_square_area: 25000.0
     dominance_ratio: 1.10
@@ -40,12 +40,10 @@ color_detector_node:
     morphology_close_iterations: 2
     blur_kernel_size: 5
 
-    # Muy importante: menos historial = menos retraso
     history_length: 2
 
     debug_log_every_n_frames: 5
 
-    # Si el semáforo aparece más al centro, puedes dejarlo apagado
     use_roi: false
     roi_x_min: 0.0
     roi_x_max: 1.0

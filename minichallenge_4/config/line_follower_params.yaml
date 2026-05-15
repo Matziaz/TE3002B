@@ -23,7 +23,7 @@ line_follower_node:
     kp: 0.90
     kd: 0.30
 
-    # Velocidad adaptativa
+    # Velocidad
     v_base: 0.50
     v_min: 0.28
     v_max: 0.80
@@ -33,7 +33,7 @@ line_follower_node:
     max_accel_step: 0.030
     max_decel_step: 0.075
 
-    # Giro máximo
+    # Velocidad angular
     w_max: 1.85
 
     # Si gira al lado contrario, cambia a 1.0

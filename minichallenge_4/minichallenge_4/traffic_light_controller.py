@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Traffic light controller with red latch and confidence-aware transitions."""
 
 from dataclasses import dataclass
