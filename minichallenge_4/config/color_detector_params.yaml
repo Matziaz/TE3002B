@@ -41,7 +41,7 @@ color_detector_node:
     # min_contour_area removes tiny speckles.
     # min_square_area makes the robot ignore distant/small color regions.
     min_contour_area: 1200.0
-    min_square_area: 8000.0
+    min_square_area: 35000.0
     dominance_ratio: 1.35
 
     # Morphology filtering.
