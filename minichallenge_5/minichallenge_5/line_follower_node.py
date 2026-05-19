@@ -17,7 +17,7 @@ class LineFollower(Node):
         super().__init__('line_follower_node')
 
         # ROS topics
-        self.declare_parameter('image_topic', '/camera')
+        self.declare_parameter('image_topic', '/video_source/raw')
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
 

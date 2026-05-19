@@ -1,58 +1,64 @@
 color_detector_node:
   ros__parameters:
-    camera_topic: '/camera'
+    camera_topic: '/video_source/raw'
     resize_width: 640
     resize_height: 480
 
     # Rojo
     red_lower_h: 0
-    red_upper_h: 10
-    red_lower_h2: 170
+    red_upper_h: 12
+    red_lower_h2: 168
     red_upper_h2: 179
-    red_lower_s: 70
+    red_lower_s: 60
     red_upper_s: 255
-    red_lower_v: 60
+    red_lower_v: 45
     red_upper_v: 255
 
-    # Amarillo más permisivo
-    yellow_lower_h: 16
-    yellow_upper_h: 45
-    yellow_lower_s: 45
+    # Amarillo
+    yellow_lower_h: 18
+    yellow_upper_h: 42
+    yellow_lower_s: 65
     yellow_upper_s: 255
-    yellow_lower_v: 65
+    yellow_lower_v: 55
     yellow_upper_v: 255
 
     # Verde
-    green_lower_h: 45
-    green_upper_h: 85
+    green_lower_h: 42
+    green_upper_h: 88
     green_lower_s: 55
     green_upper_s: 255
-    green_lower_v: 55
+    green_lower_v: 45
     green_upper_v: 255
 
-    # Detectar distancia mínima
-    min_contour_area: 1000.0
-    min_square_area: 25000.0
-    dominance_ratio: 1.10
+    # Para LEDs reales: bajar áreas mínimas
+    min_contour_area: 80.0
+    min_square_area: 1000.0
 
-    morphology_kernel_size: 5
+    # Pedir más diferencia entre colores para evitar confusiones
+    dominance_ratio: 1.35
+
+    # Kernel más pequeño para no borrar LEDs pequeños
+    morphology_kernel_size: 3
     morphology_open_iterations: 1
-    morphology_close_iterations: 2
-    blur_kernel_size: 5
+    morphology_close_iterations: 1
+    blur_kernel_size: 3
 
-    history_length: 2
+    # Más estabilidad temporal
+    history_length: 5
 
     debug_log_every_n_frames: 5
     publish_debug_image: true
     debug_publish_every_n_frames: 3
+
     publish_preview: true
     preview_topic: 'video_preview'
     preview_width: 320
     preview_height: 240
     preview_publish_every_n_frames: 2
 
-    use_roi: false
-    roi_x_min: 0.0
-    roi_x_max: 1.0
-    roi_y_min: 0.0
-    roi_y_max: 1.0
+    # Detectar sólo la zona donde normalmente aparece el semáforo
+    use_roi: true
+    roi_x_min: 0.15
+    roi_x_max: 0.85
+    roi_y_min: 0.00
+    roi_y_max: 0.55

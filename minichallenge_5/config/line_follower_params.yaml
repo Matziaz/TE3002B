@@ -1,6 +1,6 @@
 line_follower_node:
   ros__parameters:
-    image_topic: '/camera'
+    image_topic: '/video_source/raw'
     velocity_scale_topic: 'velocity_scale'
     cmd_vel_topic: 'cmd_vel'
 
@@ -39,8 +39,8 @@ line_follower_node:
     # Velocidad reducida para mundo real.
     # Primero haz que sea estable; después subimos velocidad.
     v_base: 0.28
-    v_min: 0.12
-    v_max: 0.42
+    v_min: 0.30
+    v_max: 0.50
     slow_down_error: 0.28
 
     # Inercia
@@ -48,7 +48,7 @@ line_follower_node:
     max_decel_step: 0.070
 
     # Velocidad angular
-    w_max: 1.85
+    w_max: 2.10
 
     # Si gira al lado contrario, cambia a 1.0
     steering_sign: -1.0
