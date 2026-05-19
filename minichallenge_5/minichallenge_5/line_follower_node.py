@@ -35,11 +35,11 @@ class LineFollower(Node):
         self.declare_parameter('v_upper', 90)
 
         # ROI: lower image band
-        self.declare_parameter('roi_start_fraction', 0.72)
-        self.declare_parameter('roi_end_fraction', 0.92)
+        self.declare_parameter('roi_start_fraction', 0.66)
+        self.declare_parameter('roi_end_fraction', 0.96)
 
         # Detection filtering
-        self.declare_parameter('min_line_area', 300.0)
+        self.declare_parameter('min_line_area', 180.0)
         self.declare_parameter('morphology_kernel_size', 5)
 
         # PD control
@@ -120,6 +120,7 @@ class LineFollower(Node):
         self.current_error = 0.0
         self.current_linear_x = 0.0
         self.line_detected = False
+        self.prev_line_center_x = None
 
         self.cv_bridge = CvBridge()
 
@@ -197,20 +198,49 @@ class LineFollower(Node):
 
         roi = cv_image[roi_start:roi_end, 0:width]
 
-        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        hsv_roi = cv2.GaussianBlur(hsv_roi, (5, 5), 0)
+        line_color = self.line_color.lower().strip()
 
-        lower = np.array(
-            [self.h_lower, self.s_lower, self.v_lower],
-            dtype=np.uint8,
-        )
+        if line_color == 'black':
+            gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            gray_roi = cv2.GaussianBlur(gray_roi, (5, 5), 0)
 
-        upper = np.array(
-            [self.h_upper, self.s_upper, self.v_upper],
-            dtype=np.uint8,
-        )
+            mask = cv2.adaptiveThreshold(
+                gray_roi,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY_INV,
+                31,
+                7,
+            )
 
-        mask = cv2.inRange(hsv_roi, lower, upper)
+        elif line_color == 'white':
+            gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            gray_roi = cv2.GaussianBlur(gray_roi, (5, 5), 0)
+
+            mask = cv2.adaptiveThreshold(
+                gray_roi,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                31,
+                7,
+            )
+
+        else:
+            hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            hsv_roi = cv2.GaussianBlur(hsv_roi, (5, 5), 0)
+
+            lower = np.array(
+                [self.h_lower, self.s_lower, self.v_lower],
+                dtype=np.uint8,
+            )
+
+            upper = np.array(
+                [self.h_upper, self.s_upper, self.v_upper],
+                dtype=np.uint8,
+            )
+
+            mask = cv2.inRange(hsv_roi, lower, upper)
 
         mask = cv2.morphologyEx(
             mask,
@@ -236,20 +266,40 @@ class LineFollower(Node):
             self.line_detected = False
             return
 
-        largest_contour = max(contours, key=cv2.contourArea)
-        area = cv2.contourArea(largest_contour)
+        # Filter contours by minimum area
+        valid = [c for c in contours if cv2.contourArea(c) >= self.min_line_area]
 
-        if area < self.min_line_area:
+        if not valid:
             self.line_detected = False
             return
 
-        moments = cv2.moments(largest_contour)
+        # Compute centroid for each valid contour
+        centroids = []
+        for c in valid:
+            m = cv2.moments(c)
+            if m.get('m00', 0) == 0:
+                continue
+            cx = float(m['m10'] / m['m00'])
+            cy = float(m['m01'] / m['m00'])
+            area = float(cv2.contourArea(c))
+            centroids.append((c, cx, cy, area))
 
-        if moments['m00'] <= 0:
+        if not centroids:
             self.line_detected = False
             return
 
-        line_center_x = moments['m10'] / moments['m00']
+        # Choose contour based on continuity: prefer centroid close to previous detection.
+        if self.prev_line_center_x is not None:
+            # score = distance to previous centroid (lower is better), break ties by larger area
+            best = min(
+                centroids,
+                key=lambda tup: (abs(tup[1] - self.prev_line_center_x), -tup[3]),
+            )
+            chosen_contour, line_center_x, _, area = best
+        else:
+            # No history: pick largest area
+            chosen_contour, line_center_x, _, area = max(centroids, key=lambda tup: tup[3])
+
         camera_center_x = width / 2.0
 
         # Error lateral normalizado:
@@ -258,6 +308,12 @@ class LineFollower(Node):
         #  1.0 = derecha extrema
         error = (line_center_x - camera_center_x) / camera_center_x
         error = float(np.clip(error, -1.0, 1.0))
+
+        # Save previous centroid (in pixels) to keep continuity across frames
+        try:
+            self.prev_line_center_x = float(line_center_x)
+        except Exception:
+            self.prev_line_center_x = None
 
         self.current_error = error
         self.line_detected = True

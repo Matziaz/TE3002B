@@ -13,10 +13,10 @@ line_follower_node:
     v_lower: 0
     v_upper: 90
 
-    roi_start_fraction: 0.72
-    roi_end_fraction: 0.92
+    roi_start_fraction: 0.66
+    roi_end_fraction: 0.96
 
-    min_line_area: 300.0
+    min_line_area: 180.0
     morphology_kernel_size: 5
 
     # PD

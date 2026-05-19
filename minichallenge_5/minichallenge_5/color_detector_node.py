@@ -34,6 +34,11 @@ class ColorDetector(Node):
         self.declare_parameter('camera_topic', '/video_source/raw')
         self.declare_parameter('resize_width', 640)
         self.declare_parameter('resize_height', 480)
+        self.declare_parameter('publish_preview', True)
+        self.declare_parameter('preview_topic', 'video_preview')
+        self.declare_parameter('preview_width', 320)
+        self.declare_parameter('preview_height', 240)
+        self.declare_parameter('preview_publish_every_n_frames', 2)
 
         # Red thresholds
         self.declare_parameter('red_lower_h', 0)
@@ -84,6 +89,13 @@ class ColorDetector(Node):
         self.camera_topic = str(self.get_parameter('camera_topic').value)
         self.resize_width = int(self.get_parameter('resize_width').value)
         self.resize_height = int(self.get_parameter('resize_height').value)
+        self.publish_preview = bool(self.get_parameter('publish_preview').value)
+        self.preview_topic = str(self.get_parameter('preview_topic').value)
+        self.preview_width = int(self.get_parameter('preview_width').value)
+        self.preview_height = int(self.get_parameter('preview_height').value)
+        self.preview_publish_every_n_frames = int(
+            self.get_parameter('preview_publish_every_n_frames').value
+        )
 
         self.red_lower_h = int(self.get_parameter('red_lower_h').value)
         self.red_upper_h = int(self.get_parameter('red_upper_h').value)
@@ -165,6 +177,7 @@ class ColorDetector(Node):
         self.confidence_pub = self.create_publisher(Float32MultiArray, 'color_confidence', qos)
         self.object_area_pub = self.create_publisher(Float32, 'detected_color_area', qos)
         self.debug_pub = self.create_publisher(Image, 'color_debug_image', qos)
+        self.preview_pub = self.create_publisher(Image, self.preview_topic, qos)
 
         self.create_subscription(Image, self.camera_topic, self.image_callback, qos)
         self.create_subscription(String, 'nav_status', self.nav_status_callback, qos)
@@ -194,6 +207,23 @@ class ColorDetector(Node):
                 return
 
             self.image_frame_count += 1
+
+            # Publish lightweight preview early to keep UI responsive
+            if (
+                self.publish_preview
+                and self.preview_pub.get_subscription_count() > 0
+                and self.image_frame_count % self.preview_publish_every_n_frames == 0
+            ):
+                try:
+                    preview_img = cv2.resize(
+                        cv_image, (self.preview_width, self.preview_height)
+                    )
+                    self.preview_pub.publish(
+                        self.bridge.cv2_to_imgmsg(preview_img, encoding='bgr8')
+                    )
+                except Exception:
+                    # Don't let preview failures stop processing
+                    pass
 
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
             hsv = cv2.GaussianBlur(

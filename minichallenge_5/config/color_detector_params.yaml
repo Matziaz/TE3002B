@@ -45,6 +45,11 @@ color_detector_node:
     debug_log_every_n_frames: 5
     publish_debug_image: true
     debug_publish_every_n_frames: 3
+    publish_preview: true
+    preview_topic: 'video_preview'
+    preview_width: 320
+    preview_height: 240
+    preview_publish_every_n_frames: 2
 
     use_roi: false
     roi_x_min: 0.0
