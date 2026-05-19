@@ -31,10 +31,8 @@ setup(
     # executable names shown below.
     entry_points={
         'console_scripts': [
-            'odometry_node = minichallenge_5.odometry_node:main',
             'color_detector_node = minichallenge_5.color_detector_node:main',
             'traffic_light_controller = minichallenge_5.traffic_light_controller:main',
-            'go_to_goal_node = minichallenge_5.go_to_goal_node:main',
             'line_follower_node = minichallenge_5.line_follower_node:main',
         ],
     },

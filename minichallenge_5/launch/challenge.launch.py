@@ -14,17 +14,13 @@ def _build_nodes(context):
     mode = LaunchConfiguration('mode').perform(context)
     launch_camera = LaunchConfiguration('launch_camera').perform(context).lower() in ('true', '1', 'yes')
 
-    odometry_config = os.path.join(package_dir, 'config', 'odometry_params.yaml')
     color_config = os.path.join(package_dir, 'config', 'color_detector_params.yaml')
     traffic_config = os.path.join(package_dir, 'config', 'traffic_light_params.yaml')
-    go_to_goal_config = os.path.join(package_dir, 'config', 'go_to_goal_params.yaml')
     line_follower_config = os.path.join(package_dir, 'config', 'line_follower_params.yaml')
 
     params = {
-        'odometry': [odometry_config],
         'color': [color_config],
         'traffic': [traffic_config],
-        'go_to_goal': [go_to_goal_config],
         'line_follower': [line_follower_config],
     }
 
@@ -62,13 +58,6 @@ def _build_nodes(context):
     actions.extend([
         Node(
             package='minichallenge_5',
-            executable='odometry_node',
-            name='odometry_node',
-            output='screen',
-            parameters=params['odometry'],
-        ),
-        Node(
-            package='minichallenge_5',
             executable='color_detector_node',
             name='color_detector_node',
             output='screen',
@@ -81,28 +70,14 @@ def _build_nodes(context):
             output='screen',
             parameters=params['traffic'],
         ),
+        Node(
+            package='minichallenge_5',
+            executable='line_follower_node',
+            name='line_follower_node',
+            output='screen',
+            parameters=params['line_follower'],
+        ),
     ])
-
-    if mode == 'go_to_goal':
-        actions.append(
-            Node(
-                package='minichallenge_5',
-                executable='go_to_goal_node',
-                name='go_to_goal_node',
-                output='screen',
-                parameters=params['go_to_goal'],
-            )
-        )
-    else:
-        actions.append(
-            Node(
-                package='minichallenge_5',
-                executable='line_follower_node',
-                name='line_follower_node',
-                output='screen',
-                parameters=params['line_follower'],
-            )
-        )
 
     return actions
 
@@ -114,12 +89,7 @@ def generate_launch_description():
             default_value='default',
             description='Config profile name: default, PROFILE_FAST, PROFILE_LAB_SAFE, PROFILE_POOR_LIGHTING, PROFILE_PRECISION',
         ),
-        DeclareLaunchArgument(
-            'mode',
-            default_value='line_follow',
-            choices=['line_follow', 'go_to_goal'],
-            description='Execution mode: line_follow launches line_follower_node, go_to_goal launches go_to_goal_node.',
-        ),
+
         DeclareLaunchArgument(
             'launch_camera',
             default_value='false',
