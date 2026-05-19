@@ -39,12 +39,12 @@ class LineFollower(Node):
         self.declare_parameter('roi_end_fraction', 0.96)
 
         # Detection filtering
-        self.declare_parameter('min_line_area', 180.0)
+        self.declare_parameter('min_line_area', 100.0)
         self.declare_parameter('morphology_kernel_size', 5)
 
         # PD control
         self.declare_parameter('kp', 0.75)
-        self.declare_parameter('kd', 0.22)
+        self.declare_parameter('kd', 0.45)
         self.declare_parameter('w_max', 1.25)
 
         # Adaptive speed
@@ -55,7 +55,7 @@ class LineFollower(Node):
 
         # Inertia control: limit acceleration/deceleration per control cycle
         self.declare_parameter('max_accel_step', 0.020)
-        self.declare_parameter('max_decel_step', 0.055)
+        self.declare_parameter('max_decel_step', 0.030)
 
         # Direction correction
         # If the robot turns the wrong way, change this to 1.0 in YAML.
@@ -326,7 +326,9 @@ class LineFollower(Node):
 
         if not self.line_detected:
             if self.stop_when_line_lost:
-                self.current_linear_x = self._smooth_speed(0.0)
+                # Mantener velocidad actual en lugar de frenar abruptamente
+                # para pasar curvas cerradas
+                self.current_linear_x = self._smooth_speed(self.current_linear_x * 0.85)
                 self.publish_cmd(self.current_linear_x, 0.0)
             else:
                 self.publish_cmd(0.0, 0.0)

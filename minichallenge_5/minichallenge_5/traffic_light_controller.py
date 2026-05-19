@@ -193,7 +193,7 @@ class TrafficLightController(Node):
         elif new_state == TrafficState.SLOW:
             self.velocity_scale = self.slow_velocity_factor
         elif new_state == TrafficState.MOVING:
-            self.velocity_scale = 1.0
+            self.velocity_scale = self.slow_velocity_factor
             if self.red_latched:
                 self.red_latched = False
         else:
