@@ -19,7 +19,7 @@ class LineFollower(Node):
         super().__init__('line_follower_node')
 
         # ROS topics
-        self.declare_parameter('image_topic', '/camera')
+        self.declare_parameter('image_topic', '/video_source/raw')
         self.declare_parameter('velocity_scale_topic', 'velocity_scale')
         self.declare_parameter('cmd_vel_topic', 'cmd_vel')
 
@@ -48,14 +48,14 @@ class LineFollower(Node):
         self.declare_parameter('w_max', 1.25)
 
         # Adaptive speed
-        self.declare_parameter('v_base', 0.35)
-        self.declare_parameter('v_min', 0.20)
-        self.declare_parameter('v_max', 0.48)
-        self.declare_parameter('slow_down_error', 0.45)
+        self.declare_parameter('v_base', 0.32)
+        self.declare_parameter('v_min', 0.16)
+        self.declare_parameter('v_max', 0.52)
+        self.declare_parameter('slow_down_error', 0.32)
 
         # Inertia control: limit acceleration/deceleration per control cycle
-        self.declare_parameter('max_accel_step', 0.015)
-        self.declare_parameter('max_decel_step', 0.040)
+        self.declare_parameter('max_accel_step', 0.020)
+        self.declare_parameter('max_decel_step', 0.055)
 
         # Direction correction
         # If the robot turns the wrong way, change this to 1.0 in YAML.

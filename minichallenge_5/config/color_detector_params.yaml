@@ -1,6 +1,6 @@
 color_detector_node:
   ros__parameters:
-    camera_topic: '/camera'
+    camera_topic: '/video_source/raw'
     resize_width: 640
     resize_height: 480
 

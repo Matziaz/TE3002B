@@ -1,6 +1,6 @@
 line_follower_node:
   ros__parameters:
-    image_topic: '/camera'
+    image_topic: '/video_source/raw'
     velocity_scale_topic: 'velocity_scale'
     cmd_vel_topic: 'cmd_vel'
 
@@ -24,14 +24,14 @@ line_follower_node:
     kd: 0.30
 
     # Velocidad
-    v_base: 0.50
-    v_min: 0.28
-    v_max: 0.80
-    slow_down_error: 0.36
+    v_base: 0.32
+    v_min: 0.16
+    v_max: 0.52
+    slow_down_error: 0.32
 
     # Inercia
-    max_accel_step: 0.030
-    max_decel_step: 0.075
+    max_accel_step: 0.020
+    max_decel_step: 0.055
 
     # Velocidad angular
     w_max: 1.85

@@ -31,7 +31,7 @@ class ColorDetector(Node):
         super().__init__('color_detector_node')
 
         # Camera/topic parameters
-        self.declare_parameter('camera_topic', '/camera')
+        self.declare_parameter('camera_topic', '/video_source/raw')
         self.declare_parameter('resize_width', 640)
         self.declare_parameter('resize_height', 480)
 
