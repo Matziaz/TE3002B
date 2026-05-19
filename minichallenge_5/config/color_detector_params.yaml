@@ -43,6 +43,8 @@ color_detector_node:
     history_length: 2
 
     debug_log_every_n_frames: 5
+    publish_debug_image: true
+    debug_publish_every_n_frames: 3
 
     use_roi: false
     roi_x_min: 0.0

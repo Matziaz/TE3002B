@@ -71,6 +71,8 @@ class ColorDetector(Node):
         self.declare_parameter('blur_kernel_size', 5)
         self.declare_parameter('history_length', 5)
         self.declare_parameter('debug_log_every_n_frames', 5)
+        self.declare_parameter('publish_debug_image', True)
+        self.declare_parameter('debug_publish_every_n_frames', 3)
 
         # Optional ROI
         self.declare_parameter('use_roi', False)
@@ -114,6 +116,13 @@ class ColorDetector(Node):
         self.blur_kernel_size = int(self.get_parameter('blur_kernel_size').value)
         self.history_length = int(self.get_parameter('history_length').value)
         self.debug_log_every_n_frames = int(self.get_parameter('debug_log_every_n_frames').value)
+        self.publish_debug_image = bool(self.get_parameter('publish_debug_image').value)
+        self.debug_publish_every_n_frames = int(
+            self.get_parameter('debug_publish_every_n_frames').value
+        )
+
+        if self.debug_publish_every_n_frames < 1:
+            self.debug_publish_every_n_frames = 1
 
         self.use_roi = bool(self.get_parameter('use_roi').value)
         self.roi_x_min = float(self.get_parameter('roi_x_min').value)
@@ -239,7 +248,14 @@ class ColorDetector(Node):
                 roi_bounds,
             )
 
-            self.debug_pub.publish(self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8'))
+            if (
+                self.publish_debug_image
+                and self.debug_pub.get_subscription_count() > 0
+                and self.image_frame_count % self.debug_publish_every_n_frames == 0
+            ):
+                self.debug_pub.publish(
+                    self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8')
+                )
 
         except Exception as exc:
             self.get_logger().error(f'Error in image processing: {exc}')
