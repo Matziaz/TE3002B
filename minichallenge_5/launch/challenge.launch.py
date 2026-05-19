@@ -11,7 +11,6 @@ import os
 def _build_nodes(context):
     package_dir = get_package_share_directory('minichallenge_5')
     profile = LaunchConfiguration('profile').perform(context)
-    mode = LaunchConfiguration('mode').perform(context)
     launch_camera = LaunchConfiguration('launch_camera').perform(context).lower() in ('true', '1', 'yes')
 
     color_config = os.path.join(package_dir, 'config', 'color_detector_params.yaml')
@@ -93,11 +92,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'launch_camera',
             default_value='false',
-            description='If true, also launches ros_deep_learning video_source.ros2.launch for /video_source/raw. Default is false because the Puzzlebot camera is normally launched separately.',
+            description='If true, also launches ros_deep_learning video_source.ros2.launch for /camera. Default is false because the Puzzlebot camera is normally launched separately.',
         ),
         DeclareLaunchArgument(
             'camera_topic',
-            default_value='/video_source/raw',
+            default_value='/camera',
             description='Topic name to publish camera frames on (forwarded to the included camera launch).',
         ),
         OpaqueFunction(function=_build_nodes),

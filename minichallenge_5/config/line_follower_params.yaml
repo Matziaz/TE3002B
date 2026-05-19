@@ -1,37 +1,51 @@
 line_follower_node:
   ros__parameters:
-    image_topic: '/video_source/raw'
+    image_topic: '/camera'
     velocity_scale_topic: 'velocity_scale'
     cmd_vel_topic: 'cmd_vel'
 
     line_color: 'black'
 
+    # Filtro HSV para línea negra real.
+    # El fondo de madera puede ser oscuro/marrón, pero normalmente no es tan negro.
     h_lower: 0
     h_upper: 180
     s_lower: 0
-    s_upper: 255
+    s_upper: 170
     v_lower: 0
-    v_upper: 90
+    v_upper: 115
 
-    roi_start_fraction: 0.66
-    roi_end_fraction: 0.96
+    # ROI más alta para anticipar curvas pronunciadas.
+    roi_start_fraction: 0.55
+    roi_end_fraction: 0.98
 
-    min_line_area: 180.0
-    morphology_kernel_size: 5
+    # La línea es delgada, por eso el área mínima baja.
+    min_line_area: 75.0
+
+    # Kernel pequeño para no borrar líneas delgadas.
+    morphology_kernel_size: 3
+
+    # Adaptive threshold más tolerante ante iluminación irregular.
+    adaptive_block_size: 35
+    adaptive_c: 5
+
+    use_hsv_dark_filter: true
+    use_clahe: true
 
     # PD
     kp: 0.90
     kd: 0.30
 
-    # Velocidad
-    v_base: 0.32
-    v_min: 0.16
-    v_max: 0.52
-    slow_down_error: 0.32
+    # Velocidad reducida para mundo real.
+    # Primero haz que sea estable; después subimos velocidad.
+    v_base: 0.28
+    v_min: 0.12
+    v_max: 0.42
+    slow_down_error: 0.28
 
     # Inercia
-    max_accel_step: 0.020
-    max_decel_step: 0.055
+    max_accel_step: 0.015
+    max_decel_step: 0.070
 
     # Velocidad angular
     w_max: 1.85
@@ -39,7 +53,11 @@ line_follower_node:
     # Si gira al lado contrario, cambia a 1.0
     steering_sign: -1.0
 
+    # En mundo real conviene no frenar inmediatamente si pierde la línea.
     stop_when_line_lost: true
+    lost_line_max_frames: 10
+    search_linear_speed: 0.08
+    search_angular_speed: 0.75
 
     control_loop_rate: 0.033
     enable_line_follower: true
