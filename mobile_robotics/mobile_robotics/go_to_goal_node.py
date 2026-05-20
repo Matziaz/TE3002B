@@ -22,6 +22,7 @@ import rclpy
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import LaserScan
 from rclpy.node import Node
 
 
@@ -58,6 +59,16 @@ class GoToGoalNode(Node):
         # ========== SPECIAL BEHAVIOR ==========
         self.declare_parameter('turn_in_place_threshold', 0.8)
 
+        # ========== OBSTACLE AVOIDANCE PARAMETERS ==========
+        self.declare_parameter('enable_obstacle_avoidance', True)
+        self.declare_parameter('scan_topic', '/scan')
+        self.declare_parameter('d_safety', 0.35)              # Stop/escape distance [m]
+        self.declare_parameter('d_start_ao', 0.90)            # Start avoidance distance [m]
+        self.declare_parameter('avoid_front_angle', 1.5708)   # Front sector: +/- 90 deg [rad]
+        self.declare_parameter('k_avoid', 1.2)                # Repulsive angular gain
+        self.declare_parameter('avoid_v_scale', 0.45)         # Slowdown while avoiding
+        self.declare_parameter('avoid_omega_max', 1.2)        # Limit only for avoidance term
+
         # ========== PARAMETER LOADING ==========
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.odom_topic = str(self.get_parameter('odom_topic').value)
@@ -82,6 +93,15 @@ class GoToGoalNode(Node):
 
         self.turn_in_place_threshold = float(self.get_parameter('turn_in_place_threshold').value)
 
+        self.enable_obstacle_avoidance = bool(self.get_parameter('enable_obstacle_avoidance').value)
+        self.scan_topic = str(self.get_parameter('scan_topic').value)
+        self.d_safety = float(self.get_parameter('d_safety').value)
+        self.d_start_ao = float(self.get_parameter('d_start_ao').value)
+        self.avoid_front_angle = float(self.get_parameter('avoid_front_angle').value)
+        self.k_avoid = float(self.get_parameter('k_avoid').value)
+        self.avoid_v_scale = float(self.get_parameter('avoid_v_scale').value)
+        self.avoid_omega_max = float(self.get_parameter('avoid_omega_max').value)
+
         # ========== PARAMETER CONSTRAINTS ==========
         self.control_rate = max(1.0, self.control_rate)
         self.e_d_tolerance = max(0.005, self.e_d_tolerance)
@@ -93,6 +113,11 @@ class GoToGoalNode(Node):
         self.v_min = max(0.0, min(self.v_min, self.v_max))
         self.omega_min = max(0.0, min(self.omega_min, self.omega_max))
         self.turn_in_place_threshold = max(self.e_theta_tolerance, self.turn_in_place_threshold)
+        self.d_safety = max(0.05, self.d_safety)
+        self.d_start_ao = max(self.d_safety + 0.05, self.d_start_ao)
+        self.avoid_front_angle = self.clamp(self.avoid_front_angle, 0.10, math.pi)
+        self.avoid_v_scale = self.clamp(self.avoid_v_scale, 0.0, 1.0)
+        self.avoid_omega_max = max(0.05, self.avoid_omega_max)
 
         # ========== ROBOT STATE ==========
         self.x = 0.0            # Current x position
@@ -102,11 +127,17 @@ class GoToGoalNode(Node):
         self.goal_reached = False
         self.goal_tolerance_since = None
 
+        self.scan_ready = False
+        self.closest_range = math.inf
+        self.theta_closest = 0.0
+
         self.last_control_stamp = self.get_clock().now()
 
         # ========== ROS SETUP ==========
         self.cmd_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
         self.create_subscription(Odometry, self.odom_topic, self.odom_callback, 10)
+        if self.enable_obstacle_avoidance:
+            self.create_subscription(LaserScan, self.scan_topic, self.scan_callback, 10)
 
         if self.listen_goal_topic:
             self.create_subscription(PoseStamped, self.goal_topic, self.goal_callback, 10)
@@ -116,6 +147,10 @@ class GoToGoalNode(Node):
         self.get_logger().info('Go-to-goal node started.')
         self.get_logger().info(f'Goal = ({self.x_goal:.3f}, {self.y_goal:.3f}) | mode={self.listen_goal_topic}')
         self.get_logger().info(f'Gains: k_v={self.k_v}, k_ω={self.k_omega}')
+        self.get_logger().info(
+            f'Obstacle avoidance={self.enable_obstacle_avoidance} | '
+            f'd_safety={self.d_safety:.2f}, d_start_ao={self.d_start_ao:.2f}'
+        )
 
     def normalize_angle(self, angle):
         """
@@ -162,6 +197,71 @@ class GoToGoalNode(Node):
         cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
         self.yaw = math.atan2(siny_cosp, cosy_cosp)
         self.odom_ready = True
+
+    def scan_callback(self, msg):
+        """Store the closest valid obstacle in the front sector of the LiDAR."""
+        best_range = math.inf
+        best_angle = 0.0
+
+        angle = float(msg.angle_min)
+        for r in msg.ranges:
+            r = float(r)
+
+            valid_range = math.isfinite(r)
+            if msg.range_min > 0.0:
+                valid_range = valid_range and r >= msg.range_min
+            if msg.range_max > 0.0:
+                valid_range = valid_range and r <= msg.range_max
+
+            # Only consider obstacles in front of the robot.
+            theta = self.normalize_angle(angle)
+            if valid_range and abs(theta) <= self.avoid_front_angle and r < best_range:
+                best_range = r
+                best_angle = theta
+
+            angle += float(msg.angle_increment)
+
+        self.closest_range = best_range
+        self.theta_closest = best_angle
+        self.scan_ready = True
+
+    def apply_obstacle_avoidance(self, v_cmd, w_cmd):
+        """
+        Blend go-to-goal with obstacle avoidance.
+
+        Go-to-goal gives the attractive command toward the objective.
+        The LiDAR gives a repulsive angular command away from the closest
+        frontal obstacle. The final command keeps moving toward the goal when
+        safe, slows down near obstacles, and rotates away if the obstacle is
+        inside the safety distance.
+        """
+        if not self.enable_obstacle_avoidance or not self.scan_ready:
+            return v_cmd, w_cmd
+
+        closest_range = self.closest_range
+        theta_closest = self.theta_closest
+
+        if not math.isfinite(closest_range) or closest_range > self.d_start_ao:
+            return v_cmd, w_cmd
+
+        # Direction opposite to the obstacle.
+        theta_avoid = self.normalize_angle(theta_closest + math.pi)
+        w_avoid = self.k_avoid * theta_avoid
+        w_avoid = self.clamp(w_avoid, -self.avoid_omega_max, self.avoid_omega_max)
+
+        if closest_range <= self.d_safety:
+            # Object too close: prioritize escape over goal tracking.
+            v_cmd = 0.0
+            w_cmd = w_avoid
+        else:
+            # In warning zone: continue toward goal, but slower and with
+            # repulsive angular correction added to the go-to-goal command.
+            distance_factor = (closest_range - self.d_safety) / (self.d_start_ao - self.d_safety)
+            distance_factor = self.clamp(distance_factor, 0.0, 1.0)
+            v_cmd *= self.avoid_v_scale * distance_factor
+            w_cmd += w_avoid
+
+        return v_cmd, w_cmd
 
     def control_loop(self):
         """Main control loop: compute v and ω commands."""
@@ -220,6 +320,9 @@ class GoToGoalNode(Node):
         else:
             # Reduce linear velocity when heading is misaligned
             v_cmd *= max(0.0, math.cos(e_th))
+
+        # ========== OBSTACLE AVOIDANCE BLENDING ==========
+        v_cmd, w_cmd = self.apply_obstacle_avoidance(v_cmd, w_cmd)
 
         # ========== VELOCITY LIMITS ==========
         v_cmd = self.clamp(v_cmd, 0.0, self.v_max)

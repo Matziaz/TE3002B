@@ -9,7 +9,7 @@ go_to_goal_node:
     control_rate: 30.0                  # Control loop frequency (Hz)
 
     # ========== GOAL POSITION ==========
-    x_goal: 1.0                         # Target x position (meters)
+    x_goal: 3.0                         # Target x position (meters)
     y_goal: 0.0                         # Target y position (meters)
     listen_goal_topic: true             # If true: listen to /goal_pose; if false: use x_goal/y_goal params
 
@@ -32,3 +32,13 @@ go_to_goal_node:
     
     # Special Behavior
     turn_in_place_threshold: 0.5        # If |e_θ| > this (radians): only rotate (v=0), don't move forward
+
+    # ========== OBSTACLE AVOIDANCE ==========
+    enable_obstacle_avoidance: true      # true: mezcla go-to-goal con avoid obstacles
+    scan_topic: "/scan"                  # Input: LiDAR
+    d_safety: 0.35                       # Si el obstáculo está más cerca, se detiene y gira
+    d_start_ao: 0.90                     # Desde esta distancia empieza a evitar
+    avoid_front_angle: 1.5708            # Sector frontal +/- 90 grados
+    k_avoid: 1.2                         # Ganancia angular de evasión
+    avoid_v_scale: 0.45                  # Reduce velocidad al evitar obstáculos
+    avoid_omega_max: 1.2                 # Límite del giro de evasión
