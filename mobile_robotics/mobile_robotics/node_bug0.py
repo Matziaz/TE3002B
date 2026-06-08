@@ -17,8 +17,6 @@ def wrap_to_pi(angle):
 
 def yaw_to_quaternion(yaw):
     q = Quaternion()
-    q.x = 0.0
-    q.y = 0.0
     q.z = math.sin(yaw / 2.0)
     q.w = math.cos(yaw / 2.0)
     return q
@@ -34,10 +32,10 @@ class Bug0(Node):
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
         self.declare_parameter('odom_topic', '/odom')
 
-        self.declare_parameter('r', 0.05)
+        self.declare_parameter('r', 0.0288)
         self.declare_parameter('b', 0.19)
-        self.declare_parameter('encoders_are_angular_speed', True)
 
+        self.declare_parameter('encoders_are_angular_speed', True)
         self.declare_parameter('invert_right_encoder', False)
         self.declare_parameter('invert_left_encoder', False)
 
@@ -45,10 +43,10 @@ class Bug0(Node):
         self.declare_parameter('y_goal', 0.0)
 
         self.declare_parameter('v_goal', 0.75)
-        self.declare_parameter('v_wall', 0.30)
+        self.declare_parameter('v_wall', 0.40)
         self.declare_parameter('w_max', 2.5)
 
-        self.declare_parameter('goal_tolerance', 0.20)
+        self.declare_parameter('goal_tolerance', 0.05)
         self.declare_parameter('front_obstacle_distance', 0.55)
         self.declare_parameter('path_clear_distance', 0.90)
         self.declare_parameter('desired_wall_distance', 0.40)
@@ -61,6 +59,7 @@ class Bug0(Node):
 
         self.r = float(self.get_parameter('r').value)
         self.b = float(self.get_parameter('b').value)
+
         self.encoders_are_angular_speed = bool(
             self.get_parameter('encoders_are_angular_speed').value
         )
@@ -120,7 +119,7 @@ class Bug0(Node):
 
         self.create_timer(0.02, self.control_loop)
 
-        self.get_logger().info('Bug 0 started.')
+        self.get_logger().info('Bug0 started.')
 
     def right_encoder_cb(self, msg):
         self.right_encoder = float(msg.data)
@@ -193,13 +192,16 @@ class Bug0(Node):
         if abs(w) < 1e-6:
             self.x += v * math.cos(self.theta) * dt
             self.y += v * math.sin(self.theta) * dt
-            self.theta = wrap_to_pi(self.theta + w * dt)
         else:
             theta_new = wrap_to_pi(self.theta + w * dt)
-            self.x += (v / w) * (math.sin(theta_new) - math.sin(self.theta))
-            self.y -= (v / w) * (math.cos(theta_new) - math.cos(self.theta))
-            self.theta = theta_new
 
+            self.x += (v / w) * (math.sin(theta_new) - math.sin(self.theta))
+            self.y += (v / w) * (math.cos(self.theta) - math.cos(theta_new))
+
+            self.theta = theta_new
+            return v, w
+
+        self.theta = wrap_to_pi(self.theta + w * dt)
         return v, w
 
     def publish_odom(self, v, w):
@@ -231,14 +233,8 @@ class Bug0(Node):
         angle_error = self.angle_to_goal()
 
         cmd = Twist()
-
-        if abs(angle_error) > 0.6:
-            cmd.linear.x = 0.08
-        else:
-            cmd.linear.x = self.v_goal
-
-        cmd.angular.z = 2.0 * angle_error
-        cmd.angular.z = max(min(cmd.angular.z, self.w_max), -self.w_max)
+        cmd.linear.x = 0.08 if abs(angle_error) > 0.6 else self.v_goal
+        cmd.angular.z = max(min(2.0 * angle_error, self.w_max), -self.w_max)
 
         return cmd
 
@@ -252,9 +248,7 @@ class Bug0(Node):
             cmd.angular.z = 1.25
         else:
             cmd.linear.x = self.v_wall
-            cmd.angular.z = 1.8 * error
-
-        cmd.angular.z = max(min(cmd.angular.z, self.w_max), -self.w_max)
+            cmd.angular.z = max(min(1.8 * error, self.w_max), -self.w_max)
 
         return cmd
 
