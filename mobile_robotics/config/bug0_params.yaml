@@ -1,0 +1,39 @@
+bug0_node:
+  ros__parameters:
+    use_sim_time: true
+
+    cmd_vel_topic: "/cmd_vel"
+    odom_topic: "/odom"
+    scan_topic: "/scan"
+    goal_topic: "/goal_pose"
+    listen_goal_topic: false
+    control_rate: 30.0
+
+    # Cambia x_goal para cada escenario:
+    # Escenario 1: 5.0
+    # Escenario 2: 6.0
+    # Escenario 3: 8.0
+    x_goal: 8.0
+    y_goal: 0.0
+
+    goal_tolerance: 0.08
+
+    # Condiciones Bug 0
+    front_block_distance: 0.65
+    front_clear_distance: 0.85
+    heading_tolerance_to_leave_wall: 0.35
+    min_wall_follow_time: 1.0
+
+    # Wall following
+    wall_follow_direction: "CCW"
+    target_wall_distance: 0.40
+    danger_distance: 0.27
+
+    # Velocidades y ganancias
+    v_gtg_max: 0.28
+    v_wall: 0.12
+    omega_max: 1.2
+    k_v: 0.8
+    k_omega_gtg: 1.8
+    k_omega_wall: 1.4
+    k_wall_distance: 0.9
