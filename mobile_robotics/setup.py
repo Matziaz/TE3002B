@@ -25,6 +25,7 @@ setup(
         "console_scripts": [
             "odometry_node = mobile_robotics.odometry_node:main",
             "bug0_node = mobile_robotics.bug0_node:main",
+            'node_bug0 = mobile_robotics.node_bug0:main',
         ],
     },
 )
