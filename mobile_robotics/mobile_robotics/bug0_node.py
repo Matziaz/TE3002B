@@ -3,11 +3,11 @@
 Bug 0 reactive navigation node for ROS 2.
 
 States:
-    GO_TO_GOAL: move toward the goal with proportional control.
-    WALL_FOLLOW: follow the obstacle boundary when the frontal path is blocked.
+    GtG: move toward the goal with proportional control.
+    WF: follow the obstacle boundary when the frontal path is blocked.
     DONE: stop after reaching the goal.
 
-The switch back to GO_TO_GOAL is done when the goal is approximately in front of
+The switch back to GtG is done when the goal is approximately in front of
 robot and the frontal LiDAR sector is clear. This matches the Bug 0 idea: leave
 wall-following as soon as the robot can move directly toward the goal again.
 """
@@ -22,8 +22,8 @@ from sensor_msgs.msg import LaserScan
 
 
 class Bug0Node(Node):
-    GO_TO_GOAL = 'GO_TO_GOAL'
-    WALL_FOLLOW = 'WALL_FOLLOW'
+    GtG = 'GtG'
+    WF = 'WF'
     DONE = 'DONE'
 
     def __init__(self):
@@ -53,8 +53,8 @@ class Bug0Node(Node):
         self.declare_parameter('k_omega_gtg', 1.8)
         self.declare_parameter('k_omega_wall', 1.4)
         self.declare_parameter('k_wall_distance', 0.9)
-        self.declare_parameter('wall_follow_direction', 'CCW')
-        self.declare_parameter('min_wall_follow_time', 1.0)
+        self.declare_parameter('WF_direction', 'CCW')
+        self.declare_parameter('min_WF_time', 1.0)
 
         self.cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self.odom_topic = str(self.get_parameter('odom_topic').value)
@@ -80,11 +80,11 @@ class Bug0Node(Node):
         self.k_omega_gtg = float(self.get_parameter('k_omega_gtg').value)
         self.k_omega_wall = float(self.get_parameter('k_omega_wall').value)
         self.k_wall_distance = float(self.get_parameter('k_wall_distance').value)
-        self.wall_follow_direction = str(self.get_parameter('wall_follow_direction').value).upper()
-        self.min_wall_follow_time = float(self.get_parameter('min_wall_follow_time').value)
+        self.WF_direction = str(self.get_parameter('WF_direction').value).upper()
+        self.min_WF_time = float(self.get_parameter('min_WF_time').value)
 
-        if self.wall_follow_direction not in ('CW', 'CCW'):
-            self.wall_follow_direction = 'CCW'
+        if self.WF_direction not in ('CW', 'CCW'):
+            self.WF_direction = 'CCW'
 
         self.x = 0.0
         self.y = 0.0
@@ -98,7 +98,7 @@ class Bug0Node(Node):
         self.closest_range = math.inf
         self.theta_closest = 0.0
 
-        self.state = self.GO_TO_GOAL
+        self.state = self.GtG
         self.wall_start_time = None
         self.last_state = None
 
@@ -111,7 +111,7 @@ class Bug0Node(Node):
         self.create_timer(1.0 / self.control_rate, self.control_loop)
 
         self.get_logger().info('Bug 0 node started.')
-        self.get_logger().info(f'Goal: ({self.x_goal:.2f}, {self.y_goal:.2f}) | wall mode: {self.wall_follow_direction}')
+        self.get_logger().info(f'Goal: ({self.x_goal:.2f}, {self.y_goal:.2f}) | wall mode: {self.WF_direction}')
 
     def normalize_angle(self, angle):
         return math.atan2(math.sin(angle), math.cos(angle))
@@ -137,7 +137,7 @@ class Bug0Node(Node):
     def goal_cb(self, msg):
         self.x_goal = float(msg.pose.position.x)
         self.y_goal = float(msg.pose.position.y)
-        self.state = self.GO_TO_GOAL
+        self.state = self.GtG
         self.wall_start_time = None
         self.get_logger().info(f'New goal: ({self.x_goal:.2f}, {self.y_goal:.2f})')
 
@@ -197,7 +197,7 @@ class Bug0Node(Node):
     def path_to_goal_is_clear(self, heading_error):
         front_clear = (not math.isfinite(self.front_min)) or self.front_min > self.front_clear_distance
         goal_in_front = abs(heading_error) < self.heading_tolerance_to_leave_wall
-        waited_enough = self.seconds_since(self.wall_start_time) >= self.min_wall_follow_time
+        waited_enough = self.seconds_since(self.wall_start_time) >= self.min_WF_time
         return front_clear and goal_in_front and waited_enough
 
     def update_state(self, distance, heading_error):
@@ -207,18 +207,18 @@ class Bug0Node(Node):
 
         obstacle_front = math.isfinite(self.front_min) and self.front_min < self.front_block_distance
 
-        if self.state == self.GO_TO_GOAL and obstacle_front:
-            self.state = self.WALL_FOLLOW
+        if self.state == self.GtG and obstacle_front:
+            self.state = self.WF
             self.wall_start_time = self.get_clock().now()
-        elif self.state == self.WALL_FOLLOW and self.path_to_goal_is_clear(heading_error):
-            self.state = self.GO_TO_GOAL
+        elif self.state == self.WF and self.path_to_goal_is_clear(heading_error):
+            self.state = self.GtG
             self.wall_start_time = None
 
         if self.state != self.last_state:
             self.get_logger().info(f'State: {self.state}')
             self.last_state = self.state
 
-    def go_to_goal_control(self, distance, heading_error):
+    def GtG_control(self, distance, heading_error):
         v = self.clamp(self.k_v * distance, 0.0, self.v_gtg_max)
         if abs(heading_error) > 0.55:
             v = 0.0
@@ -227,11 +227,11 @@ class Bug0Node(Node):
         w = self.clamp(self.k_omega_gtg * heading_error, -self.omega_max, self.omega_max)
         return v, w
 
-    def wall_follow_control(self):
+    def WF_control(self):
         if not math.isfinite(self.closest_range):
             return 0.06, 0.45
 
-        if self.wall_follow_direction == 'CW':
+        if self.WF_direction == 'CW':
             theta_fw = self.theta_closest - math.pi / 2.0
             distance_error = self.closest_range - self.target_wall_distance
             theta_fw += self.k_wall_distance * distance_error
@@ -266,10 +266,10 @@ class Bug0Node(Node):
         if self.state == self.DONE:
             self.stop()
             return
-        if self.state == self.GO_TO_GOAL:
-            v, w = self.go_to_goal_control(distance, heading_error)
+        if self.state == self.GtG:
+            v, w = self.GtG_control(distance, heading_error)
         else:
-            v, w = self.wall_follow_control()
+            v, w = self.WF_control()
 
         self.publish_cmd(v, w)
 
