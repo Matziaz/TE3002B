@@ -18,14 +18,12 @@ setup(
     zip_safe=True,
     maintainer="Mati",
     maintainer_email="A01772503@tec.mx",
-    description="MCR Activities 1-3: speed estimation, odometry, and go-to-goal for Puzzlebot",
+    description="Bug 0 reactive navigation and odometry for Puzzlebot",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "speed_estimator_node = mobile_robotics.speed_estimator_node:main",
             "odometry_node = mobile_robotics.odometry_node:main",
-            "go_to_goal_node = mobile_robotics.go_to_goal_node:main",
             "bug0_node = mobile_robotics.bug0_node:main",
         ],
     },
