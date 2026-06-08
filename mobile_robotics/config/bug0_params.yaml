@@ -9,7 +9,6 @@ bug0_node:
     listen_goal_topic: false
     control_rate: 30.0
 
-    # Cambia x_goal para cada escenario:
     # Escenario 1: 5.0
     # Escenario 2: 6.0
     # Escenario 3: 8.0
